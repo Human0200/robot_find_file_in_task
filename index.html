@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quick start. Public static application</title>
+    <style>
+        .button-link {
+            background-color: #72caf3; /* Голубой фон */
+            border: 2px solid black;
+            color: rgb(0, 0, 0); /* Черный текст */
+            padding: 10px 20px; /* Отступы */
+            text-align: center; /* Выравнивание текста по центру */
+            text-decoration: none; /* Убираем подчеркивание текста */
+            display: inline-flex; /* Используем flexbox для выравнивания */
+            align-items: center; /* Выравнивание по центру по вертикали */
+            font-size: 14px; /* Размер шрифта */
+            margin: 4px 2px; /* Отступы между кнопками */
+            cursor: pointer; /* Курсор в виде руки при наведении */
+            border-radius: 6px; /* Скругленные углы */
+            font-weight: bold; /* Жирный шрифт */
+        }
+        .button-link:hover {
+            background-color: #3b7981; /* Темно-зеленый фон при наведении */
+        }
+        .button-link img {
+            margin-right: 8px; /* Отступ справа от иконки */
+            width: 22px; /* Ширина иконки */
+            height: 22px; /* Высота иконки */
+        }
+        .delete-button {
+            background-color: #d26cec; /* Зеленый фон */
+        }
+        .delete-button:hover {
+            background-color: #ae5ac4; /* Темно-зеленый фон при наведении */
+        }
+        .support-button {
+            background-color: #6ceca1; /* Зеленый фон */
+        }
+        .support-button:hover {
+            background-color: #45a049; /* Темно-зеленый фон при наведении */
+        }
+        .support-button img {
+            width: 18px; /* Ширина иконки */
+            height: auto; /* Автоматическая высота для сохранения пропорций */
+        }
+    </style>
+</head>
+<body>
+    Приложение устанавливает и удаляет робота.<b> Важно! Робот анализирует данные по ключевым полям (контакты, телефоны, email, названия) и оставляет только один актуальный элемент, очищая CRM от лишних записей. Для удаления дубликата необходимо, чтобы совпадение у сущностей было по комментарию и контакту, либо почты или телефону</b>
+    <div id="name"></div>
+<p>
+    <button id="ListRobots" class="button-link"><img src="http://bg59.online/We/robot.png" alt="robot">Показать всех роботов</button>
+</button>
+<a href="https://bg59.ru/#b4494" target="_blank" class="button-link support-button">
+    <img src="http://bg59.online/We/support.png" alt="Иконка тех.поддержка">
+    Поддержка
+</a>
+</p>
+<p>
+    <button id="createButton" class="button-link" ><img src="http://bg59.online/We/robotadd.png" alt="Иконка robotadd">Установить робота</button>
+    <button id="deleteButton" class="button-link delete-button"><img src="http://bg59.online/We/robotdel.png" alt="Иконка robotdel">Удалить робота</button>
+</p>
+<div id="image-container">
+<a href="https://bg59.ru/" target="_blank">
+<img src="https://cdn-ru.bitrix24.ru/b17983416/landing/b3e/b3ed502d3b66707a7dfa75d74a2e8be6/Logotip_BG_bukvy_1x.png" alt="Описание картинки в углу" style="position: absolute; bottom: 0; right: 0;">
+</a>
+</div>
+<script>
+    (function(w,d,u){
+            var s=d.createElement('script');s.async=true;s.src=u+'?'+(Date.now()/60000|0);
+            var h=d.getElementsByTagName('script')[0];h.parentNode.insertBefore(s,h);
+    })(window,document,'https://cdn-ru.bitrix24.ru/b17983416/crm/site_button/loader_8_17zzp3.js');
+</script>
+
+<script src="//api.bitrix24.com/api/v1/"></script>
+
+<script>
+window.addEventListener('scroll', function() {
+var imageContainer = document.getElementById('image-container');
+var windowHeight = window.innerHeight;
+var windowWidth = window.innerWidth;
+var imageHeight = imageContainer.offsetHeight;
+var imageWidth = imageContainer.offsetWidth;
+var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+var scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+imageContainer.style.bottom = (windowHeight - (scrollTop + imageHeight)) + 'px';
+imageContainer.style.right = (windowWidth - (scrollLeft + imageWidth)) + 'px';
+});
+
+document.getElementById("createButton").addEventListener("click", function(){
+    var params = {
+        'CODE': 'robot_delete_duplicate',
+        'HANDLER': 'https://bg59.online/Apps/DeleteDuplicate.php',
+        'AUTH_USER_ID': 1,
+        'NAME': 'Удалить дубликаты(BG)',
+        'PROPERTIES': {
+            'id_to_keep': {
+                'Name': 'ID',
+                'Type': 'int',
+                'Default': 0
+            },
+            'entity_type': {
+                'Name': 'Тип элемента',
+                'Type': 'select',
+                'Options': {
+                    'lead': 'Лид',
+                    'deal': 'Сделка'
+                },
+                'Default': 0
+            },
+            'type_of_delete': {
+                'Name': 'Тип удаления',
+                'Type': 'select',
+                'Options': {
+                    'this': 'Этот элемент',
+                    'other': 'Все другие'
+                },
+                'Default': 0
+            },
+        }
+    };
+
+    BX24.callMethod(
+        'bizproc.robot.add',
+        params,
+        function(result) {
+            if (result.error()) {
+                alert("Error: " + result.error());
+            } else {
+                alert("Успешно: " + result.data());
+            }
+        }
+    );
+});
+
+document.getElementById("deleteButton").addEventListener("click", function() {
+    var params = {
+        'CODE': 'robot_delete_duplicate',
+    };
+    BX24.callMethod(
+        'bizproc.robot.delete',
+        params,
+        function(result) {
+            if(result.error())
+                alert("Error: " + result.error());
+            else
+                alert("Успешно: " + result.data());
+        }
+    );
+});
+
+document.getElementById("ListRobots").addEventListener("click", function(){
+    BX24.callMethod(
+        'bizproc.robot.list',
+        {},
+        function(result) {
+            if(result.error()) {
+                alert("Error: " + result.error());
+            } else {
+                var data = result.data().join(', ');
+                if (data) {
+                    alert("Успешно: " + data);
+                } else {
+                    alert("Список роботов пуст.");
+                }
+            }
+        }
+    );
+});
+</script>
+</body>
+</html>
