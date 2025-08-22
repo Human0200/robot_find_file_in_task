@@ -20,11 +20,12 @@ if ($data === null) {
 // Проверка обязательных полей
 if (
     !isset($data['auth']['access_token']) || !isset($data['auth']['domain']) ||
-    !isset($data['properties']['task_id'])
+    !isset($data['properties']['task_id']) || !isset($data['properties']['entity_type']) ||
+    !isset($data['properties']['entity_id']) || !isset($data['properties']['field_code'])
 ) {
     logToFile('Ошибка: Не хватает обязательных полей в запросе');
     http_response_code(400);
-    echo json_encode(['error' => 'Требуемые поля: access_token, domain, task_id']);
+    echo json_encode(['error' => 'Требуемые поля: access_token, domain, task_id, entity_type, entity_id, field_code']);
     exit;
 }
 
@@ -32,12 +33,20 @@ if (
 $access_token = $data['auth']['access_token'];
 $domain = $data['auth']['domain'];
 $task_id = intval($data['properties']['task_id']);
+$entity_type = $data['properties']['entity_type'];
+$entity_id = intval($data['properties']['entity_id']);
+$field_code = $data['properties']['field_code'];
+$smart_process_id = isset($data['properties']['smart_process_id']) ? intval($data['properties']['smart_process_id']) : null;
 $eventToken = isset($data['event_token']) ? $data['event_token'] : null;
 
 // Логирование начала работы
 logToFile([
     'action' => 'start',
     'task_id' => $task_id,
+    'entity_type' => $entity_type,
+    'entity_id' => $entity_id,
+    'field_code' => $field_code,
+    'smart_process_id' => $smart_process_id,
     'event_token' => $eventToken
 ]);
 
@@ -61,168 +70,58 @@ function callB24Api($method, $params, $access_token, $domain)
     return json_decode($response, true);
 }
 
-// Функция получения корневой папки общего диска
-function getCommonDiskRoot($access_token, $domain)
+// Функция обновления сущности
+function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_process_id, $access_token, $domain)
 {
-    // Получаем список всех дисков
-    $storages = callB24Api('disk.storage.getlist', [], $access_token, $domain);
+    $method = '';
+    $params = [
+        'id' => $entity_id,
+        'fields' => [
+            $field_code => $fileIds
+        ]
+    ];
     
-    if (!$storages || !isset($storages['result'])) {
-        logToFile('Ошибка: Не удалось получить список дисков');
-        return false;
-    }
-    
-    logToFile(['all_storages' => $storages['result']]);
-    
-    // Ищем общий диск (обычно имеет тип 'common')
-    $commonStorage = null;
-    foreach ($storages['result'] as $storage) {
-        if ($storage['ENTITY_TYPE'] === 'common') {
-            $commonStorage = $storage;
+    // Определяем метод API в зависимости от типа сущности
+    switch ($entity_type) {
+        case 'lead':
+            $method = 'crm.lead.update';
             break;
-        }
+        case 'contact':
+            $method = 'crm.contact.update';
+            break;
+        case 'company':
+            $method = 'crm.company.update';
+            break;
+        case 'deal':
+            $method = 'crm.deal.update';
+            break;
+        case 'smart_process':
+            if (!$smart_process_id) {
+                logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
+                return false;
+            }
+            $method = "crm.item.update";
+            $params['entityTypeId'] = $smart_process_id;
+            break;
+        default:
+            logToFile(['unsupported_entity_type' => $entity_type]);
+            return false;
     }
     
-    // Если общий диск не найден, используем первый доступный
-    if (!$commonStorage && !empty($storages['result'])) {
-        $commonStorage = $storages['result'][0];
-        logToFile(['using_first_storage' => $commonStorage['ID']]);
-    }
+    logToFile(['update_entity_request' => [
+        'method' => $method,
+        'params' => $params
+    ]]);
     
-    if (!$commonStorage) {
-        logToFile('Ошибка: Нет доступных дисков');
-        return false;
-    }
+    $result = callB24Api($method, $params, $access_token, $domain);
     
-    logToFile(['selected_storage' => $commonStorage]);
-    
-    // Если ROOT_FOLDER_ID пустой, получаем корневую папку через другой метод
-    if (empty($commonStorage['ROOT_FOLDER_ID'])) {
-        logToFile('ROOT_FOLDER_ID пустой, получаем через disk.storage.get');
-        
-        $storageDetails = callB24Api('disk.storage.get', ['id' => $commonStorage['ID']], $access_token, $domain);
-        
-        if ($storageDetails && isset($storageDetails['result']['ROOT_FOLDER_ID'])) {
-            $rootFolderId = $storageDetails['result']['ROOT_FOLDER_ID'];
-            logToFile(['root_folder_from_details' => $rootFolderId]);
-            return $rootFolderId;
-        }
-        
-        // Если и это не сработало, попробуем получить список папок
-        logToFile('Попытка получить корневую папку через disk.folder.getchildren');
-        
-        $folders = callB24Api('disk.folder.getchildren', ['id' => $commonStorage['ID']], $access_token, $domain);
-        
-        if ($folders && isset($folders['result'])) {
-            // Используем ID самого диска как папку
-            logToFile(['using_storage_id_as_folder' => $commonStorage['ID']]);
-            return $commonStorage['ID'];
-        }
-        
-        logToFile('Все методы получения корневой папки не сработали');
-        return false;
-    }
-    
-    logToFile(['common_disk_found' => $commonStorage['ID'], 'root_folder' => $commonStorage['ROOT_FOLDER_ID']]);
-    return $commonStorage['ROOT_FOLDER_ID'];
-}
-
-// Функция загрузки файла на диск через UploadUrl
-function uploadFileToDisk($folderId, $fileContent, $fileName, $access_token, $domain)
-{
-    // Получаем URL для загрузки
-    $uploadRequest = callB24Api('disk.folder.uploadfile', [
-        'id' => $folderId
-    ], $access_token, $domain);
-    
-    if (!$uploadRequest || !isset($uploadRequest['result']['uploadUrl'])) {
-        logToFile('Ошибка: Не удалось получить uploadUrl');
-        return false;
-    }
-    
-    $uploadUrl = $uploadRequest['result']['uploadUrl'];
-    $fieldName = $uploadRequest['result']['field'];
-    
-    logToFile(['upload_url_received' => $uploadUrl, 'field_name' => $fieldName]);
-    
-    // Подготавливаем multipart/form-data
-    $delimiter = '-------------' . uniqid('', true);
-    $mime = 'application/octet-stream';
-    
-    $body = '--' . $delimiter . "\r\n";
-    $body .= 'Content-Disposition: form-data; name="' . $fieldName . '"';
-    $body .= '; filename="' . $fileName . '"' . "\r\n";
-    $body .= 'Content-Type: ' . $mime . "\r\n\r\n";
-    $body .= $fileContent . "\r\n";
-    $body .= "--" . $delimiter . "--\r\n";
-    
-    // Отправляем файл
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $uploadUrl);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: multipart/form-data; boundary=' . $delimiter,
-        'Content-Length: ' . strlen($body),
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-    
-    $response = curl_exec($ch);
-    
-    if (curl_errno($ch)) {
-        logToFile('CURL Upload Error: ' . curl_error($ch));
-        curl_close($ch);
-        return false;
-    }
-    
-    curl_close($ch);
-    
-    $result = json_decode($response, true);
-    
-    if ($result && isset($result['result']['ID'])) {
-        logToFile(['file_uploaded_successfully' => $result['result']['ID'], 'file_name' => $fileName]);
-        return $result['result']['ID'];
+    if ($result && isset($result['result'])) {
+        logToFile(['entity_updated_successfully' => $result['result']]);
+        return true;
     } else {
-        logToFile(['upload_error' => $result]);
+        logToFile(['entity_update_error' => $result]);
         return false;
     }
-}
-
-// Функция получения содержимого файла через Bitrix24 API
-function getFileContent($fileId, $access_token, $domain)
-{
-    // Получаем информацию о файле включая download URL
-    $fileInfo = callB24Api('disk.file.get', ['id' => $fileId], $access_token, $domain);
-    
-    if (!$fileInfo || !isset($fileInfo['result']['DOWNLOAD_URL'])) {
-        logToFile(['file_info_error' => 'Не удалось получить информацию о файле', 'file_id' => $fileId]);
-        return false;
-    }
-    
-    $downloadUrl = $fileInfo['result']['DOWNLOAD_URL'];
-    $fileName = $fileInfo['result']['NAME'];
-    
-    // Скачиваем содержимое файла
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $downloadUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    
-    $content = curl_exec($ch);
-    
-    if (curl_errno($ch)) {
-        logToFile('CURL Download Error: ' . curl_error($ch));
-        curl_close($ch);
-        return false;
-    }
-    
-    curl_close($ch);
-    
-    return ['content' => $content, 'name' => $fileName];
 }
 
 // Функция отправки результата в бизнес-процесс
@@ -251,8 +150,8 @@ try {
         logToFile("Ошибка: Задача #{$task_id} не найдена");
         
         $returnValues = [
-            'files' => '',
-            'text' => ''
+            'success' => false,
+            'message' => "Задача #{$task_id} не найдена"
         ];
         
         sendBizprocResult($eventToken, $returnValues, $access_token, $domain);
@@ -265,14 +164,7 @@ try {
     $taskData = $task['result']['task'];
     logToFile(['task_data_received' => $task_id]);
 
-    // 2. Получаем корневую папку общего диска
-    $commonDiskRootId = getCommonDiskRoot($access_token, $domain);
-    if (!$commonDiskRootId) {
-        logToFile('Ошибка: Не удалось найти общий диск');
-        throw new Exception('Не удалось найти общий диск');
-    }
-
-    // 3. Получаем результаты задачи
+    // 2. Получаем результаты задачи
     $taskResults = callB24Api("tasks.task.result.list", ['taskId' => $task_id], $access_token, $domain);
     if (!$taskResults || !isset($taskResults['result'])) {
         logToFile("Предупреждение: Не удалось получить результаты задачи #{$task_id}");
@@ -282,64 +174,56 @@ try {
     $results = $taskResults['result'];
     logToFile(['results_count' => count($results)]);
 
-    // 4. Обрабатываем результаты
-    $newFileIds = [];
+    // 3. Обрабатываем результаты
+    $fileIds = [];
     $textResult = '';
 
     if (!empty($results)) {
         $result = $results[0]; // Берем первый результат
 
-        // Обрабатываем файлы
+        // Получаем файлы
         if (!empty($result['files']) && is_array($result['files'])) {
-            $originalFileIds = $result['files'];
-            logToFile(['original_file_ids' => $originalFileIds]);
+            $fileIds = $result['files']; // Исходные ID из результата
+            logToFile(['original_file_ids' => $fileIds]);
             
-            // Получаем реальные FILE_ID через комментарий, если есть
-            $realFileIds = $originalFileIds;
+            // Попробуем получить реальные FILE_ID через комментарий
             if (!empty($result['commentId'])) {
                 $commentInfo = callB24Api("task.commentitem.get", [
                     'TASKID' => $task_id,
                     'ITEMID' => $result['commentId']
                 ], $access_token, $domain);
                 
+                logToFile(['comment_request' => 'Запрашиваем комментарий', 'comment_id' => $result['commentId']]);
+                
                 if ($commentInfo && isset($commentInfo['result']['ATTACHED_OBJECTS'])) {
-                    $foundRealIds = [];
+                    logToFile(['attached_objects_found' => $commentInfo['result']['ATTACHED_OBJECTS']]);
+                    
+                    $realFileIds = [];
                     foreach ($commentInfo['result']['ATTACHED_OBJECTS'] as $attachedFile) {
                         if (isset($attachedFile['FILE_ID'])) {
-                            $foundRealIds[] = $attachedFile['FILE_ID'];
+                            $realFileIds[] = $attachedFile['FILE_ID']; // Добавляем реальный FILE_ID
                         }
                     }
                     
-                    if (!empty($foundRealIds)) {
-                        $realFileIds = $foundRealIds;
-                        logToFile(['real_file_ids_found' => $realFileIds]);
-                    }
-                }
-            }
-            
-            // Перезагружаем каждый файл на общий диск
-            foreach ($realFileIds as $fileId) {
-                $fileData = getFileContent($fileId, $access_token, $domain);
-                
-                if ($fileData) {
-                    $newFileId = uploadFileToDisk(
-                        $commonDiskRootId,
-                        $fileData['content'],
-                        $fileData['name'],
-                        $access_token,
-                        $domain
-                    );
-                    
-                    if ($newFileId) {
-                        $newFileIds[] = $newFileId;
-                        logToFile(['file_reuploaded' => ['original_id' => $fileId, 'new_id' => $newFileId, 'name' => $fileData['name']]]);
+                    if (!empty($realFileIds)) {
+                        $fileIds = $realFileIds; // Заменяем на реальные ID
+                        logToFile(['real_file_ids_found' => $realFileIds, 'replaced_from' => $result['files']]);
                     } else {
-                        logToFile(['file_reupload_failed' => $fileId]);
+                        logToFile(['no_file_ids_in_attached_objects' => 'FILE_ID не найден в ATTACHED_OBJECTS']);
                     }
                 } else {
-                    logToFile(['file_content_failed' => $fileId]);
+                    logToFile(['comment_debug' => [
+                        'comment_info_exists' => isset($commentInfo),
+                        'has_result' => isset($commentInfo['result']),
+                        'has_attached_objects' => isset($commentInfo['result']['ATTACHED_OBJECTS']),
+                        'comment_response' => $commentInfo
+                    ]]);
                 }
+            } else {
+                logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
             }
+            
+            logToFile(['final_file_ids' => $fileIds]);
         }
 
         // Получаем текстовый результат
@@ -349,16 +233,32 @@ try {
         }
     }
 
-    // Если нет результатов, используем описание задачи
-    if (empty($newFileIds) && empty($textResult)) {
-        $textResult = !empty($taskData['DESCRIPTION']) ? $taskData['DESCRIPTION'] : '';
-        logToFile(['fallback_to_description' => $textResult]);
+    // 4. Записываем файлы в сущность, если есть файлы
+    $entityUpdateSuccess = false;
+    if (!empty($fileIds)) {
+        $entityUpdateSuccess = updateEntity(
+            $entity_type,
+            $entity_id,
+            $field_code,
+            $fileIds,
+            $smart_process_id,
+            $access_token,
+            $domain
+        );
+    } else {
+        logToFile('Нет файлов для записи в сущность');
+        $entityUpdateSuccess = true; // Считаем успешным, если нет файлов
     }
 
     // 5. Формируем возвращаемые значения
     $returnValues = [
-        'files' => implode(',', $newFileIds), // Массив ID новых файлов через запятую
-        'text' => $textResult
+        'success' => $entityUpdateSuccess,
+        'files_count' => count($fileIds),
+        'files_ids' => implode(',', $fileIds),
+        'text_result' => $textResult,
+        'message' => $entityUpdateSuccess ? 
+            'Файлы успешно записаны в сущность' : 
+            'Ошибка при записи файлов в сущность'
     ];
 
     // 6. Отправляем результат в бизнес-процесс
@@ -366,11 +266,12 @@ try {
 
     // 7. Формируем ответ
     $response = [
-        'success' => true,
-        'message' => 'Результат задачи успешно получен и файлы загружены на общий диск',
-        'files' => $newFileIds,
-        'text' => $textResult,
-        'uploaded_to_common_disk' => true
+        'success' => $entityUpdateSuccess,
+        'message' => $returnValues['message'],
+        'files_count' => count($fileIds),
+        'files_ids' => $fileIds,
+        'text_result' => $textResult,
+        'entity_updated' => $entityUpdateSuccess
     ];
 
     logToFile(['success' => $response]);
@@ -381,8 +282,11 @@ try {
     $errorMessage = 'Внутренняя ошибка сервера: ' . $e->getMessage();
     
     $returnValues = [
-        'files' => '',
-        'text' => ''
+        'success' => false,
+        'message' => $errorMessage,
+        'files_count' => 0,
+        'files_ids' => '',
+        'text_result' => ''
     ];
     
     sendBizprocResult($eventToken, $returnValues, $access_token, $domain);

@@ -218,38 +218,87 @@ class RobotsManager {
     }
 
     // Создание робота записи результата задачи
-    async createTaskResultRobot() {
-        const params = {
-            'CODE': this.robots.taskResult.code,
-            'HANDLER': this.robots.taskResult.handler,
-            'AUTH_USER_ID': 1,
-            'NAME': this.robots.taskResult.name,
-            'PROPERTIES': {
-                'task_id': {
-                    'Name': 'ID задачи',
-                    'Type': 'int',
-                    'Required': 'Y',
-                    'Default': 0
-                }
+async createTaskResultRobot() {
+    const params = {
+        'CODE': this.robots.taskResult.code,
+        'HANDLER': this.robots.taskResult.handler,
+        'AUTH_USER_ID': 1,
+        'NAME': this.robots.taskResult.name,
+        'PROPERTIES': {
+            'task_id': {
+                'Name': 'ID задачи',
+                'Type': 'int',
+                'Required': 'Y',
+                'Default': 0
             },
-            'RETURN_PROPERTIES': {
-                'files': {
-                    'Name': 'ID файлов (через запятую)',
-                    'Type': 'string',
-                    'Multiple': 'N',
-                    'Default': ''
+            'entity_type': {
+                'Name': 'Тип сущности',
+                'Type': 'select',
+                'Required': 'Y',
+                'Options': {
+                    'lead': 'Лид',
+                    'contact': 'Контакт',
+                    'company': 'Компания',
+                    'deal': 'Сделка',
+                    'smart_process': 'Смарт-процесс'
                 },
-                'text': {
-                    'Name': 'Текстовый результат',
-                    'Type': 'string',
-                    'Multiple': 'N',
-                    'Default': ''
-                }
+                'Default': 'lead'
+            },
+            'entity_id': {
+                'Name': 'ID сущности',
+                'Type': 'int',
+                'Required': 'Y',
+                'Default': 0
+            },
+            'field_code': {
+                'Name': 'Код поля для записи файлов',
+                'Type': 'string',
+                'Required': 'Y',
+                'Default': ''
+            },
+            'smart_process_id': {
+                'Name': 'ID смарт-процесса (только для смарт-процессов)',
+                'Type': 'int',
+                'Required': 'N',
+                'Default': 0
             }
-        };
+        },
+        'RETURN_PROPERTIES': {
+            'success': {
+                'Name': 'Успешность операции',
+                'Type': 'bool',
+                'Multiple': 'N',
+                'Default': false
+            },
+            'files_count': {
+                'Name': 'Количество файлов',
+                'Type': 'int',
+                'Multiple': 'N',
+                'Default': 0
+            },
+            'files_ids': {
+                'Name': 'ID файлов (через запятую)',
+                'Type': 'string',
+                'Multiple': 'N',
+                'Default': ''
+            },
+            'text_result': {
+                'Name': 'Текстовый результат задачи',
+                'Type': 'string',
+                'Multiple': 'N',
+                'Default': ''
+            },
+            'message': {
+                'Name': 'Сообщение о результате операции',
+                'Type': 'string',
+                'Multiple': 'N',
+                'Default': ''
+            }
+        }
+    };
 
-        return this.installRobot('taskResult', params);
-    }
+    return this.installRobot('taskResult', params);
+}
 
     // Создание робота привязки контакта
     async createAttachContactRobot() {
