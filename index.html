@@ -1,131 +1,592 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Test Robots Manager - Управление роботами Bitrix24</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>📋 Запись результата задачи - Робот для Bitrix24</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            flex-wrap: wrap;
+        }
+        
+        .button-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .button-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .support-button {
+            background: linear-gradient(135deg, #fd746c 0%, #ff9068 100%);
+        }
+        
+        .install-button {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+        }
+        
+        .delete-button {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+        
+        .robots-container {
+            padding: 30px;
+        }
+        
+        .robot-group {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .robot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .robot-header h3 {
+            font-size: 1.5em;
+            color: #2c3e50;
+        }
+        
+        .robot-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .robot-status.installed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .robot-status.not-installed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .robot-status.error {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .robot-description {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .robot-params {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .robot-params strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .robot-params ul, .robot-params ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .robot-params li {
+            margin-bottom: 5px;
+        }
+        
+        .robot-params code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .robot-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        footer {
+            background: #2c3e50;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        #image-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        #image-container img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+        }
+        
+        #image-container img:hover {
+            transform: scale(1.1);
+        }
+        
+        .bx24-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+            color: #856404;
+        }
+        
+        .bx24-warning h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            header {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .robot-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .robot-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🤖 Test Robots Manager</h1>
-            <p class="subtitle">Управление роботами для Bitrix24</p>
+            <h1>📋 Запись результата задачи</h1>
+            <p class="subtitle">Копирует файлы и текст из результата задачи в CRM-сущность и возвращает данные в бизнес-процесс</p>
         </header>
 
-        <div class="controls">
-            <button id="ListRobots" class="button-link">
-                🤖
-                Показать всех роботов
-            </button>
-            <a href="https://test.ru/#b4494" target="_blank" class="button-link support-button">
-                💬
-                Поддержка
-            </a>
+        <div id="bx24-warning" class="bx24-warning" style="display: none;">
+            <h3>⚠️ Внимание</h3>
+            <p>Приложение должно запускаться внутри Bitrix24. Откройте этот URL через установку приложения в вашем портале Bitrix24.</p>
         </div>
 
-        <div class="robots-container">
-            <!-- Робот удаления дубликатов -->
-            <div class="robot-group">
-                <div class="robot-header">
-                    <h3>🗂️ Удаление дубликатов</h3>
-                    <div class="robot-status" id="status-duplicate"></div>
-                </div>
-                <p class="robot-description">
-                    <strong>Назначение:</strong> Анализирует данные по ключевым полям (контакты, телефоны, email, названия) и оставляет только один актуальный элемент, очищая CRM от лишних записей. Для удаления дубликата необходимо совпадение по комментарию и контакту, либо почты или телефону.
-                </p>
-                <div class="robot-params">
-                    <strong>Параметры:</strong>
-                    <ul>
-                        <li>ID элемента для сохранения</li>
-                        <li>Тип элемента (лид/сделка)</li>
-                        <li>Тип удаления (этот элемент/все другие)</li>
-                    </ul>
-                </div>
-                <div class="robot-actions">
-                    <button id="createDuplicateButton" class="button-link install-button">
-                        ➕
-                        Установить
-                    </button>
-                    <button id="deleteDuplicateButton" class="button-link delete-button">
-                        ❌
-                        Удалить
-                    </button>
-                </div>
+        <div id="app-content">
+            <div class="controls">
+                <button id="ListRobots" class="button-link">
+                    🤖
+                    Показать робота
+                </button>
+                <a href="https://lead-space.ru/#b4494" target="_blank" class="button-link support-button">
+                    💬
+                    Поддержка
+                </a>
             </div>
 
-            <!-- Робот записи результата задачи -->
-            <div class="robot-group">
-                <div class="robot-header">
-                    <h3>📋 Запись результата задачи</h3>
-                    <div class="robot-status" id="status-task"></div>
-                </div>
-                <p class="robot-description">
-                    <strong>Назначение:</strong> Получает результаты задачи и возвращает массив ID файлов и текстовый результат через возвращаемые параметры бизнес-процесса. Не записывает данные в сущности, только извлекает и передает информацию.
-                </p>
-                <div class="robot-params">
-                    <strong>Параметры:</strong>
-                    <ul>
-                        <li>ID задачи</li>
-                    </ul>
-                    <strong>Возвращает:</strong>
-                    <ul>
-                        <li>files - ID файлов через запятую</li>
-                        <li>text - текстовый результат</li>
-                    </ul>
-                </div>
-                <div class="robot-actions">
-                    <button id="createTaskResultButton" class="button-link install-button">
-                        ➕
-                        Установить
-                    </button>
-                    <button id="deleteTaskResultButton" class="button-link delete-button">
-                        ❌
-                        Удалить
-                    </button>
-                </div>
-            </div>
+            <div class="robots-container">
+                <!-- Робот записи результата задачи -->
+                <div class="robot-group">
+                    <div class="robot-header">
+                        <h3>📋 Запись результата задачи</h3>
+                        <div class="robot-status" id="status-task">Неизвестно</div>
+                    </div>
+                    <p class="robot-description">
+                        <strong>Назначение:</strong> Получает результат выполнения задачи (файлы и текст), записывает прикреплённые файлы в указанное поле CRM-сущности (лид, контакт, сделка, компания, смарт-процесс) и возвращает данные в бизнес-процесс для дальнейшей обработки.
+                    </p>
+                    <div class="robot-params">
+                        <strong>Входные параметры:</strong>
+                        <ul>
+                            <li><code>task_id</code> — ID задачи</li>
+                            <li><code>entity_type</code> — Тип сущности: <code>lead</code>, <code>contact</code>, <code>company</code>, <code>deal</code>, <code>smart_process</code></li>
+                            <li><code>entity_id</code> — ID элемента (лида, сделки и т.д.)</li>
+                            <li><code>field_code</code> — Код поля, в которое нужно записать файлы (например, <code>UF_CRM_123456789</code>)</li>
+                            <li><code>smart_process_id</code> — ID типа смарт-процесса (обязательно при <code>entity_type = smart_process</code>)</li>
+                        </ul>
 
-            <!-- Робот привязки контакта -->
-            <div class="robot-group">
-                <div class="robot-header">
-                    <h3>📞 Привязка контакта по телефону</h3>
-                    <div class="robot-status" id="status-attach"></div>
-                </div>
-                <p class="robot-description">
-                    <strong>Назначение:</strong> Автоматически находит контакт по номеру телефона и привязывает его к лиду или сделке. Поддерживает поиск как по точному номеру, так и по очищенному от символов.
-                </p>
-                <div class="robot-params">
-                    <strong>Параметры:</strong>
-                    <ul>
-                        <li>ID сущности (лид/сделка)</li>
-                        <li>Номер телефона для поиска</li>
-                        <li>Тип сущности (лид/сделка)</li>
-                    </ul>
-                </div>
-                <div class="robot-actions">
-                    <button id="createAttachButton" class="button-link install-button">
-                        ➕
-                        Установить
-                    </button>
-                    <button id="deleteAttachButton" class="button-link delete-button">
-                        ❌
-                        Удалить
-                    </button>
+                        <strong>Что делает робот:</strong>
+                        <ol>
+                            <li>Получает результат последнего отчёта по задаче</li>
+                            <li>Извлекает прикреплённые файлы (включая реальные <code>FILE_ID</code> через комментарий)</li>
+                            <li>Записывает ID файлов в указанное поле CRM-сущности</li>
+                            <li>Сохраняет текстовый результат задачи</li>
+                            <li>Возвращает данные в бизнес-процесс через <code>return_values</code></li>
+                        </ol>
+
+                        <strong>Возвращаемые значения:</strong>
+                        <ul>
+                            <li><code>success</code> — Успешно ли выполнение</li>
+                            <li><code>files_count</code> — Количество найденных файлов</li>
+                            <li><code>files_ids</code> — Строка с ID файлов через запятую</li>
+                            <li><code>text_result</code> — Текст из результата задачи</li>
+                            <li><code>message</code> — Сообщение о статусе операции</li>
+                        </ul>
+                    </div>
+                    <div class="robot-actions">
+                        <button id="createTaskResultButton" class="button-link install-button">
+                            ➕
+                            Установить
+                        </button>
+                        <button id="deleteTaskResultButton" class="button-link delete-button">
+                            ❌
+                            Удалить
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <footer>
             <div id="image-container">
-                <a href="https://test.ru/" target="_blank">
-                    🏢
+                <a href="https://lead-space.ru/" target="_blank">
+                    <img src="https://lead-space.ru/local/templates/main/upload/logo.svg" alt="Logo">
                 </a>
             </div>
         </footer>
     </div>
-
+    <script src="https://api.bitrix24.com/api/v1/"></script>
     <!-- Scripts -->
-    <script src="//api.bitrix24.com/api/v1/"></script>
-    <script src="app.js"></script>
+    <script>
+        // Проверяем, запущено ли приложение внутри Bitrix24
+        function isInBitrix24() {
+            return typeof BX24 !== 'undefined' && 
+                   window.parent !== window && 
+                   window.location !== window.parent.location;
+        }
+
+        // Динамически загружаем BX24 API только если мы в контексте Bitrix24
+        function loadBX24API() {
+            return new Promise((resolve, reject) => {
+                if (isInBitrix24()) {
+                    const script = document.createElement('script');
+                    script.src = '//api.bitrix24.com/api/v1/';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                } else {
+                    resolve(); // Не в Bitrix24, но продолжаем выполнение
+                }
+            });
+        }
+
+        // Основная функция инициализации
+        async function initApp() {
+            try {
+                await loadBX24API();
+                
+                if (!isInBitrix24()) {
+                    // Показываем предупреждение и скрываем функциональные элементы
+                    document.getElementById('bx24-warning').style.display = 'block';
+                    document.getElementById('app-content').style.display = 'none';
+                    return;
+                }
+
+                // Инициализируем основное приложение
+                initMainApp();
+            } catch (error) {
+                console.error('Ошибка загрузки приложения:', error);
+            }
+        }
+
+        // Основная логика приложения
+        function initMainApp() {
+            const robot = {
+                code: 'robot_task_result_to_entity',
+                name: 'Записать результат задачи в сущность (LeadSpace)',
+                handler: 'https://crm.verbconsult.ru/custom-robot/TaskResultToEntity.php',
+                statusElementId: 'status-task'
+            };
+
+            const statusEl = document.getElementById(robot.statusElementId);
+            const createBtn = document.getElementById('createTaskResultButton');
+            const deleteBtn = document.getElementById('deleteTaskResultButton');
+            const listBtn = document.getElementById('ListRobots');
+
+            // === Проверка доступности REST API ===
+            async function checkApiAvailability() {
+                try {
+                    const result = await callMethod('methods', {});
+                    const methods = result.data();
+                    const hasBizProc = Object.keys(methods).some(method => method.startsWith('bizproc'));
+                    
+                    if (!hasBizProc) {
+                        throw new Error('Модуль бизнес-процессов недоступен на вашем портале');
+                    }
+                    return true;
+                } catch (error) {
+                    console.error('API недоступно:', error);
+                    showNotify('❌ Ошибка доступа к REST API: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            // === Проверка прав доступа ===
+            async function checkPermissions() {
+                try {
+                    const result = await callMethod('profile', {});
+                    const user = result.data();
+                    
+                    if (!user.ADMIN) {
+                        throw new Error('Недостаточно прав. Требуются права администратора');
+                    }
+                    return true;
+                } catch (error) {
+                    console.error('Ошибка прав доступа:', error);
+                    showNotify('❌ Ошибка прав доступа: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            // === Проверка статуса робота ===
+            async function checkStatus() {
+                try {
+                    const apiAvailable = await checkApiAvailability();
+                    if (!apiAvailable) return;
+
+                    const hasPermissions = await checkPermissions();
+                    if (!hasPermissions) return;
+
+                    const result = await callMethod('bizproc.robot.list', {});
+                    const installed = result.data().includes(robot.code);
+                    updateStatus(installed);
+                } catch (err) {
+                    console.error('Ошибка проверки статуса:', err);
+                    if (statusEl) {
+                        statusEl.textContent = 'Ошибка';
+                        statusEl.className = 'robot-status error';
+                    }
+                    showNotify('❌ Ошибка проверки статуса: ' + err.message, 'error');
+                }
+            }
+
+            // === Установить робота ===
+            createBtn?.addEventListener('click', async () => {
+                try {
+                    const apiAvailable = await checkApiAvailability();
+                    if (!apiAvailable) return;
+
+                    const hasPermissions = await checkPermissions();
+                    if (!hasPermissions) return;
+
+                    const params = {
+                        CODE: robot.code,
+                        HANDLER: robot.handler.trim(),
+                        AUTH_USER_ID: 1,
+                        NAME: robot.name,
+                        PROPERTIES: {
+                            task_id: { Name: 'ID задачи', Type: 'int', Required: 'Y' },
+                            entity_type: { 
+                                Name: 'Тип сущности', 
+                                Type: 'select', 
+                                Required: 'Y', 
+                                Options: { lead: 'Лид', contact: 'Контакт', company: 'Компания', deal: 'Сделка', smart_process: 'Смарт-процесс' }
+                            },
+                            entity_id: { Name: 'ID сущности', Type: 'int', Required: 'Y' },
+                            field_code: { Name: 'Код поля для файлов', Type: 'string', Required: 'Y' },
+                            smart_process_id: { Name: 'ID смарт-процесса', Type: 'int', Required: 'N' }
+                        },
+                        RETURN_PROPERTIES: {
+                            success: { Name: 'Успешно', Type: 'bool' },
+                            files_count: { Name: 'Кол-во файлов', Type: 'int' },
+                            files_ids: { Name: 'ID файлов', Type: 'string' },
+                            text_result: { Name: 'Текст', Type: 'string' },
+                            message: { Name: 'Сообщение', Type: 'string' }
+                        }
+                    };
+
+                    await callMethod('bizproc.robot.add', params);
+                    showNotify('✅ Робот установлен');
+                    updateStatus(true);
+                } catch (err) {
+                    showNotify('❌ Ошибка установки: ' + (err.message || err), 'error');
+                }
+            });
+
+            // === Удалить робота ===
+            deleteBtn?.addEventListener('click', async () => {
+                if (!confirm('Удалить робота?')) return;
+
+                try {
+                    const apiAvailable = await checkApiAvailability();
+                    if (!apiAvailable) return;
+
+                    const hasPermissions = await checkPermissions();
+                    if (!hasPermissions) return;
+
+                    await callMethod('bizproc.robot.delete', { CODE: robot.code });
+                    showNotify('✅ Робот удалён');
+                    updateStatus(false);
+                } catch (err) {
+                    showNotify('❌ Ошибка удаления: ' + (err.message || err), 'error');
+                }
+            });
+
+            // === Показать список роботов ===
+            listBtn?.addEventListener('click', async () => {
+                try {
+                    const apiAvailable = await checkApiAvailability();
+                    if (!apiAvailable) return;
+
+                    const hasPermissions = await checkPermissions();
+                    if (!hasPermissions) return;
+
+                    const result = await callMethod('bizproc.robot.list', {});
+                    const list = result.data();
+                    showNotify(list.length ? 'Роботы:\n' + list.join('\n') : 'Нет роботов');
+                } catch (err) {
+                    showNotify('❌ Ошибка: ' + (err.message || err), 'error');
+                }
+            });
+
+            // === Вспомогательные функции ===
+            function callMethod(method, params) {
+                return new Promise((resolve, reject) => {
+                    BX24.callMethod(method, params, (result) => {
+                        if (result.error()) {
+                            const error = result.error();
+                            console.error('REST Error:', error);
+                            
+                            if (error.includes('404') || error.includes('not found')) {
+                                reject(new Error('Метод не найден. Возможно, модуль бизнес-процессов не установлен'));
+                            } else if (error.includes('access denied') || error.includes('permission')) {
+                                reject(new Error('Доступ запрещен. Проверьте права доступа'));
+                            } else {
+                                reject(error);
+                            }
+                        } else {
+                            resolve(result);
+                        }
+                    });
+                });
+            }
+
+            function updateStatus(installed) {
+                if (statusEl) {
+                    statusEl.textContent = installed ? 'Установлен' : 'Не установлен';
+                    statusEl.className = 'robot-status ' + (installed ? 'installed' : 'not-installed');
+                }
+            }
+
+            function showNotify(message, type = 'success') {
+                const notif = document.createElement('div');
+                notif.style.cssText = `
+                    position: fixed; top: 20px; right: 20px; padding: 12px 16px;
+                    background: ${type === 'success' ? '#4CAF50' : '#f44336'};
+                    color: white; border-radius: 6px; z-index: 10000;
+                    max-width: 300px; word-break: break-word; font-size: 14px;
+                `;
+                notif.textContent = message;
+                document.body.appendChild(notif);
+                setTimeout(() => notif.remove(), 5000);
+            }
+
+            // === Плавающая иконка ===
+            const imgContainer = document.getElementById('image-container');
+            if (imgContainer) {
+                const updatePos = () => {
+                    const h = window.innerHeight, w = window.innerWidth;
+                    const st = window.pageYOffset, sl = window.pageXOffset;
+                    const eh = imgContainer.offsetHeight, ew = imgContainer.offsetWidth;
+                    imgContainer.style.bottom = Math.max(0, h - (st + eh)) + 'px';
+                    imgContainer.style.right = Math.max(0, w - (sl + ew)) + 'px';
+                };
+                window.addEventListener('scroll', updatePos);
+                window.addEventListener('resize', updatePos);
+                updatePos();
+            }
+
+            // === Инициализация ===
+            checkStatus();
+        }
+
+        // Запускаем приложение
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
 </body>
 </html>
