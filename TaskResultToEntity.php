@@ -23,7 +23,7 @@ if (
     !isset($data['properties']['task_id']) || !isset($data['properties']['entity_type']) ||
     !isset($data['properties']['entity_id']) || !isset($data['properties']['field_code'])
 ) {
-    logToFile('Ошибка: Не хватает обязательных полей в запросе');
+    //logToFile('Ошибка: Не хватает обязательных полей в запросе');
     http_response_code(400);
     echo json_encode(['error' => 'Требуемые поля: access_token, domain, task_id, entity_type, entity_id, field_code']);
     exit;
@@ -63,21 +63,81 @@ function callB24Api($method, $params, $access_token, $domain)
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     $response = curl_exec($ch);
     if (curl_errno($ch)) {
-        logToFile('CURL Error: ' . curl_error($ch));
+        //logToFile('CURL Error: ' . curl_error($ch));
         return false;
     }
     curl_close($ch);
     return json_decode($response, true);
 }
 
+// Функция получения содержимого файла через Bitrix24 API
+function getFileContent($fileId, $access_token, $domain)
+{
+    // Получаем информацию о файле включая download URL
+    $fileInfo = callB24Api('disk.file.get', ['id' => $fileId], $access_token, $domain);
+    
+    if (!$fileInfo || !isset($fileInfo['result']['DOWNLOAD_URL'])) {
+        //logToFile(['file_info_error' => 'Не удалось получить информацию о файле', 'file_id' => $fileId]);
+        return false;
+    }
+    
+    $downloadUrl = $fileInfo['result']['DOWNLOAD_URL'];
+    $fileName = $fileInfo['result']['NAME'];
+    
+    // Скачиваем содержимое файла
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $downloadUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    
+    $content = curl_exec($ch);
+    
+    if (curl_errno($ch)) {
+        //logToFile('CURL Download Error: ' . curl_error($ch));
+        curl_close($ch);
+        return false;
+    }
+    
+    curl_close($ch);
+    
+    return ['content' => $content, 'name' => $fileName];
+}
+
 // Функция обновления сущности
 function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_process_id, $access_token, $domain)
 {
     $method = '';
+    
+    // Преобразуем массив ID файлов в правильный формат для Bitrix24
+    $fileValues = [];
+    foreach ($fileIds as $fileId) {
+        $fileData = getFileContent($fileId, $access_token, $domain);
+        if ($fileData) {
+            $fileValues[] = [
+                $fileData['name'],
+                base64_encode($fileData['content'])
+            ];
+            //logToFile(['file_prepared_for_upload' => ['id' => $fileId, 'name' => $fileData['name'], 'size' => strlen($fileData['content'])]]);
+        } else {
+            //logToFile(['file_preparation_failed' => $fileId]);
+        }
+    }
+    
+    if (empty($fileValues)) {
+        //logToFile('Нет файлов для записи после обработки');
+        return false;
+    }
+    
+    // Если файл только один, передаем его как одиночный файл (для не множественных полей)
+    // Если файлов несколько, передаем как массив (для множественных полей)
+    $fieldValue = (count($fileValues) === 1) ? $fileValues[0] : $fileValues;
+    
     $params = [
         'id' => $entity_id,
         'fields' => [
-            $field_code => $fileIds
+            $field_code => $fieldValue
         ]
     ];
     
@@ -97,29 +157,33 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
             break;
         case 'smart_process':
             if (!$smart_process_id) {
-                logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
+                //logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
                 return false;
             }
             $method = "crm.item.update";
             $params['entityTypeId'] = $smart_process_id;
             break;
         default:
-            logToFile(['unsupported_entity_type' => $entity_type]);
+            //logToFile(['unsupported_entity_type' => $entity_type]);
             return false;
     }
     
     logToFile(['update_entity_request' => [
         'method' => $method,
-        'params' => $params
+        'entity_id' => $entity_id,
+        'field_code' => $field_code,
+        'files_count' => count($fileValues),
+        'is_single_file' => (count($fileValues) === 1),
+        'field_value_type' => (count($fileValues) === 1) ? 'single_file' : 'multiple_files'
     ]]);
     
     $result = callB24Api($method, $params, $access_token, $domain);
     
     if ($result && isset($result['result'])) {
-        logToFile(['entity_updated_successfully' => $result['result']]);
+        //logToFile(['entity_updated_successfully' => $result['result']]);
         return true;
     } else {
-        logToFile(['entity_update_error' => $result]);
+        //logToFile(['entity_update_error' => $result]);
         return false;
     }
 }
@@ -128,7 +192,7 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
 function sendBizprocResult($eventToken, $returnValues, $access_token, $domain)
 {
     if (!$eventToken) {
-        logToFile('Предупреждение: event_token не найден, результат не отправлен в БП');
+        //logToFile('Предупреждение: event_token не найден, результат не отправлен в БП');
         return true;
     }
     
@@ -147,7 +211,7 @@ try {
     // 1. Получаем данные задачи
     $task = callB24Api("tasks.task.get", ['taskId' => $task_id], $access_token, $domain);
     if (!$task || !isset($task['result']['task'])) {
-        logToFile("Ошибка: Задача #{$task_id} не найдена");
+        //logToFile("Ошибка: Задача #{$task_id} не найдена");
         
         $returnValues = [
             'success' => false,
@@ -162,17 +226,17 @@ try {
     }
 
     $taskData = $task['result']['task'];
-    logToFile(['task_data_received' => $task_id]);
+    //logToFile(['task_data_received' => $task_id]);
 
     // 2. Получаем результаты задачи
     $taskResults = callB24Api("tasks.task.result.list", ['taskId' => $task_id], $access_token, $domain);
     if (!$taskResults || !isset($taskResults['result'])) {
-        logToFile("Предупреждение: Не удалось получить результаты задачи #{$task_id}");
+        //logToFile("Предупреждение: Не удалось получить результаты задачи #{$task_id}");
         $taskResults = ['result' => []];
     }
 
     $results = $taskResults['result'];
-    logToFile(['results_count' => count($results)]);
+    //logToFile(['results_count' => count($results)]);
 
     // 3. Обрабатываем результаты
     $fileIds = [];
@@ -184,7 +248,7 @@ try {
         // Получаем файлы
         if (!empty($result['files']) && is_array($result['files'])) {
             $fileIds = $result['files']; // Исходные ID из результата
-            logToFile(['original_file_ids' => $fileIds]);
+            //logToFile(['original_file_ids' => $fileIds]);
             
             // Попробуем получить реальные FILE_ID через комментарий
             if (!empty($result['commentId'])) {
@@ -193,10 +257,10 @@ try {
                     'ITEMID' => $result['commentId']
                 ], $access_token, $domain);
                 
-                logToFile(['comment_request' => 'Запрашиваем комментарий', 'comment_id' => $result['commentId']]);
+                //logToFile(['comment_request' => 'Запрашиваем комментарий', 'comment_id' => $result['commentId']]);
                 
                 if ($commentInfo && isset($commentInfo['result']['ATTACHED_OBJECTS'])) {
-                    logToFile(['attached_objects_found' => $commentInfo['result']['ATTACHED_OBJECTS']]);
+                    //logToFile(['attached_objects_found' => $commentInfo['result']['ATTACHED_OBJECTS']]);
                     
                     $realFileIds = [];
                     foreach ($commentInfo['result']['ATTACHED_OBJECTS'] as $attachedFile) {
@@ -207,9 +271,9 @@ try {
                     
                     if (!empty($realFileIds)) {
                         $fileIds = $realFileIds; // Заменяем на реальные ID
-                        logToFile(['real_file_ids_found' => $realFileIds, 'replaced_from' => $result['files']]);
+                        //logToFile(['real_file_ids_found' => $realFileIds, 'replaced_from' => $result['files']]);
                     } else {
-                        logToFile(['no_file_ids_in_attached_objects' => 'FILE_ID не найден в ATTACHED_OBJECTS']);
+                        //logToFile(['no_file_ids_in_attached_objects' => 'FILE_ID не найден в ATTACHED_OBJECTS']);
                     }
                 } else {
                     logToFile(['comment_debug' => [
@@ -220,16 +284,16 @@ try {
                     ]]);
                 }
             } else {
-                logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
+                //logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
             }
             
-            logToFile(['final_file_ids' => $fileIds]);
+            //logToFile(['final_file_ids' => $fileIds]);
         }
 
         // Получаем текстовый результат
         if (!empty($result['text'])) {
             $textResult = $result['text'];
-            logToFile(['text_result' => $textResult]);
+            //logToFile(['text_result' => $textResult]);
         }
     }
 
@@ -246,7 +310,7 @@ try {
             $domain
         );
     } else {
-        logToFile('Нет файлов для записи в сущность');
+        //logToFile('Нет файлов для записи в сущность');
         $entityUpdateSuccess = true; // Считаем успешным, если нет файлов
     }
 
@@ -274,7 +338,7 @@ try {
         'entity_updated' => $entityUpdateSuccess
     ];
 
-    logToFile(['success' => $response]);
+    //logToFile(['success' => $response]);
     echo json_encode($response);
 
 } catch (Exception $e) {
@@ -288,10 +352,10 @@ try {
         'files_ids' => '',
         'text_result' => ''
     ];
-    
+
     sendBizprocResult($eventToken, $returnValues, $access_token, $domain);
 
-    logToFile(['exception' => $errorMessage, 'trace' => $e->getTraceAsString()]);
+    //logToFile(['exception' => $errorMessage, 'trace' => $e->getTraceAsString()]);
     http_response_code(500);
     echo json_encode(['error' => $errorMessage]);
 }
