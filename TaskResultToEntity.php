@@ -23,7 +23,7 @@ if (
     !isset($data['properties']['task_id']) || !isset($data['properties']['entity_type']) ||
     !isset($data['properties']['entity_id']) || !isset($data['properties']['field_code'])
 ) {
-    //logToFile('Ошибка: Не хватает обязательных полей в запросе');
+    logToFile('Ошибка: Не хватает обязательных полей в запросе');
     http_response_code(400);
     echo json_encode(['error' => 'Требуемые поля: access_token, domain, task_id, entity_type, entity_id, field_code']);
     exit;
@@ -39,16 +39,7 @@ $field_code = $data['properties']['field_code'];
 $smart_process_id = isset($data['properties']['smart_process_id']) ? intval($data['properties']['smart_process_id']) : null;
 $eventToken = isset($data['event_token']) ? $data['event_token'] : null;
 
-// Логирование начала работы
-logToFile([
-    'action' => 'start',
-    'task_id' => $task_id,
-    'entity_type' => $entity_type,
-    'entity_id' => $entity_id,
-    'field_code' => $field_code,
-    'smart_process_id' => $smart_process_id,
-    'event_token' => $eventToken
-]);
+// Убрано лишнее логирование старта
 
 // Функция вызова Bitrix24 API
 function callB24Api($method, $params, $access_token, $domain)
@@ -63,7 +54,7 @@ function callB24Api($method, $params, $access_token, $domain)
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     $response = curl_exec($ch);
     if (curl_errno($ch)) {
-        //logToFile('CURL Error: ' . curl_error($ch));
+        logToFile('CURL Error: ' . curl_error($ch));
         return false;
     }
     curl_close($ch);
@@ -77,7 +68,7 @@ function getFileContent($fileId, $access_token, $domain)
     $fileInfo = callB24Api('disk.file.get', ['id' => $fileId], $access_token, $domain);
     
     if (!$fileInfo || !isset($fileInfo['result']['DOWNLOAD_URL'])) {
-        //logToFile(['file_info_error' => 'Не удалось получить информацию о файле', 'file_id' => $fileId]);
+        logToFile(['file_info_error' => 'Не удалось получить информацию о файле', 'file_id' => $fileId]);
         return false;
     }
     
@@ -95,7 +86,7 @@ function getFileContent($fileId, $access_token, $domain)
     $content = curl_exec($ch);
     
     if (curl_errno($ch)) {
-        //logToFile('CURL Download Error: ' . curl_error($ch));
+        logToFile('CURL Download Error: ' . curl_error($ch));
         curl_close($ch);
         return false;
     }
@@ -105,9 +96,95 @@ function getFileContent($fileId, $access_token, $domain)
     return ['content' => $content, 'name' => $fileName];
 }
 
+// Функция определения типа поля (множественное или нет)
+function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_token, $domain)
+{
+    $method = '';
+    $params = [];
+    
+    // Определяем метод получения полей в зависимости от типа сущности
+    switch ($entity_type) {
+        case 'lead':
+            $method = 'crm.lead.fields';
+            break;
+        case 'contact':
+            $method = 'crm.contact.fields';
+            break;
+        case 'company':
+            $method = 'crm.company.fields';
+            break;
+        case 'deal':
+            $method = 'crm.deal.fields';
+            break;
+        case 'smart_process':
+            if (!$smart_process_id) {
+                logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
+                return false;
+            }
+            $method = "crm.item.fields";
+            $params['entityTypeId'] = $smart_process_id;
+            break;
+        default:
+            logToFile(['unsupported_entity_type_for_fields' => $entity_type]);
+            return false;
+    }
+    
+    // Убрано лишнее логирование запроса полей
+    
+    $fieldsResult = callB24Api($method, $params, $access_token, $domain);
+    
+    if (!$fieldsResult || !isset($fieldsResult['result'])) {
+        logToFile(['fields_request_error' => $fieldsResult]);
+        return false; // По умолчанию считаем не множественным
+    }
+    
+    // Для смарт-процессов поля находятся в result.fields, для остальных сущностей - в result
+    if ($entity_type === 'smart_process' && isset($fieldsResult['result']['fields'])) {
+        $fields = $fieldsResult['result']['fields'];
+    } else {
+        $fields = $fieldsResult['result'];
+    }
+    
+    if (!isset($fields[$field_code])) {
+        logToFile(['field_not_found' => $field_code, 'available_fields' => array_keys($fields)]);
+        return false; // Поле не найдено
+    }
+    
+    $fieldInfo = $fields[$field_code];
+    
+    // Проверяем признак множественности
+    // В Bitrix24 множественные поля имеют isMultiple = true или isRequired = Y и isMultiple = Y
+    $isMultiple = false;
+    
+    if (isset($fieldInfo['isMultiple']) && $fieldInfo['isMultiple'] === true) {
+        $isMultiple = true;
+    } elseif (isset($fieldInfo['isMultiple']) && $fieldInfo['isMultiple'] === 'Y') {
+        $isMultiple = true;
+    } elseif (isset($fieldInfo['multiple']) && $fieldInfo['multiple'] === true) {
+        $isMultiple = true;
+    } elseif (isset($fieldInfo['multiple']) && $fieldInfo['multiple'] === 'Y') {
+        $isMultiple = true;
+    }
+    
+    logToFile([
+        'field_info_check' => [
+            'field_code' => $field_code,
+            'field_info' => $fieldInfo,
+            'is_multiple_detected' => $isMultiple
+        ]
+    ]);
+    
+    return $isMultiple;
+}
+
 // Функция обновления сущности
 function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_process_id, $access_token, $domain)
 {
+    // Определяем, является ли поле множественным
+    $isMultiple = isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_token, $domain);
+    
+    // Убрано лишнее логирование проверки множественности
+    
     $method = '';
     
     // Преобразуем массив ID файлов в правильный формат для Bitrix24
@@ -119,20 +196,30 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
                 $fileData['name'],
                 base64_encode($fileData['content'])
             ];
-            //logToFile(['file_prepared_for_upload' => ['id' => $fileId, 'name' => $fileData['name'], 'size' => strlen($fileData['content'])]]);
+            // Убрано лишнее логирование подготовки файла
         } else {
-            //logToFile(['file_preparation_failed' => $fileId]);
+            logToFile(['file_preparation_failed' => $fileId]);
         }
     }
     
     if (empty($fileValues)) {
-        //logToFile('Нет файлов для записи после обработки');
+        logToFile('Нет файлов для записи после обработки');
         return false;
     }
     
-    // Если файл только один, передаем его как одиночный файл (для не множественных полей)
-    // Если файлов несколько, передаем как массив (для множественных полей)
-    $fieldValue = (count($fileValues) === 1) ? $fileValues[0] : $fileValues;
+    // Определяем формат передачи файлов на основе типа поля
+    if ($isMultiple) {
+        // Для множественных полей всегда передаем массив (даже если файл один)
+        $fieldValue = $fileValues;
+        // Убрано лишнее логирование формата поля
+    } else {
+        // Для одиночных полей берем только первый файл
+        $fieldValue = $fileValues[0];
+        if (count($fileValues) > 1) {
+            logToFile(['warning' => 'Множественные файлы для одиночного поля, берем только первый', 'files_count' => count($fileValues)]);
+        }
+        // Убрано лишнее логирование взятого файла
+    }
     
     $params = [
         'id' => $entity_id,
@@ -157,33 +244,26 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
             break;
         case 'smart_process':
             if (!$smart_process_id) {
-                //logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
+                logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
                 return false;
             }
             $method = "crm.item.update";
             $params['entityTypeId'] = $smart_process_id;
             break;
         default:
-            //logToFile(['unsupported_entity_type' => $entity_type]);
+            logToFile(['unsupported_entity_type' => $entity_type]);
             return false;
     }
     
-    logToFile(['update_entity_request' => [
-        'method' => $method,
-        'entity_id' => $entity_id,
-        'field_code' => $field_code,
-        'files_count' => count($fileValues),
-        'is_single_file' => (count($fileValues) === 1),
-        'field_value_type' => (count($fileValues) === 1) ? 'single_file' : 'multiple_files'
-    ]]);
+    // Убрано лишнее логирование запроса обновления
     
     $result = callB24Api($method, $params, $access_token, $domain);
     
     if ($result && isset($result['result'])) {
-        //logToFile(['entity_updated_successfully' => $result['result']]);
+        // Убрано лишнее логирование успешного обновления
         return true;
     } else {
-        //logToFile(['entity_update_error' => $result]);
+        logToFile(['entity_update_error' => $result]);
         return false;
     }
 }
@@ -192,7 +272,7 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
 function sendBizprocResult($eventToken, $returnValues, $access_token, $domain)
 {
     if (!$eventToken) {
-        //logToFile('Предупреждение: event_token не найден, результат не отправлен в БП');
+        logToFile('Предупреждение: event_token не найден, результат не отправлен в БП');
         return true;
     }
     
@@ -211,7 +291,7 @@ try {
     // 1. Получаем данные задачи
     $task = callB24Api("tasks.task.get", ['taskId' => $task_id], $access_token, $domain);
     if (!$task || !isset($task['result']['task'])) {
-        //logToFile("Ошибка: Задача #{$task_id} не найдена");
+        logToFile("Ошибка: Задача #{$task_id} не найдена");
         
         $returnValues = [
             'success' => false,
@@ -226,17 +306,17 @@ try {
     }
 
     $taskData = $task['result']['task'];
-    //logToFile(['task_data_received' => $task_id]);
+    // Убрано лишнее логирование
 
     // 2. Получаем результаты задачи
     $taskResults = callB24Api("tasks.task.result.list", ['taskId' => $task_id], $access_token, $domain);
     if (!$taskResults || !isset($taskResults['result'])) {
-        //logToFile("Предупреждение: Не удалось получить результаты задачи #{$task_id}");
+        logToFile("Предупреждение: Не удалось получить результаты задачи #{$task_id}");
         $taskResults = ['result' => []];
     }
 
     $results = $taskResults['result'];
-    //logToFile(['results_count' => count($results)]);
+    // Убрано лишнее логирование количества результатов
 
     // 3. Обрабатываем результаты
     $fileIds = [];
@@ -247,8 +327,8 @@ try {
 
         // Получаем файлы
         if (!empty($result['files']) && is_array($result['files'])) {
-            $fileIds = $result['files']; // Исходные ID из результата
-            //logToFile(['original_file_ids' => $fileIds]);
+            $fileIds = $result['files'];
+            // Убрано лишнее логирование оригинальных ID
             
             // Попробуем получить реальные FILE_ID через комментарий
             if (!empty($result['commentId'])) {
@@ -257,10 +337,10 @@ try {
                     'ITEMID' => $result['commentId']
                 ], $access_token, $domain);
                 
-                //logToFile(['comment_request' => 'Запрашиваем комментарий', 'comment_id' => $result['commentId']]);
+                // Убрано лишнее логирование запроса комментария
                 
                 if ($commentInfo && isset($commentInfo['result']['ATTACHED_OBJECTS'])) {
-                    //logToFile(['attached_objects_found' => $commentInfo['result']['ATTACHED_OBJECTS']]);
+                    // Убрано лишнее логирование найденных объектов
                     
                     $realFileIds = [];
                     foreach ($commentInfo['result']['ATTACHED_OBJECTS'] as $attachedFile) {
@@ -270,10 +350,10 @@ try {
                     }
                     
                     if (!empty($realFileIds)) {
-                        $fileIds = $realFileIds; // Заменяем на реальные ID
-                        //logToFile(['real_file_ids_found' => $realFileIds, 'replaced_from' => $result['files']]);
+                        $fileIds = $realFileIds;
+                        // Убрано лишнее логирование замены ID
                     } else {
-                        //logToFile(['no_file_ids_in_attached_objects' => 'FILE_ID не найден в ATTACHED_OBJECTS']);
+                        logToFile(['no_file_ids_in_attached_objects' => 'FILE_ID не найден в ATTACHED_OBJECTS']);
                     }
                 } else {
                     logToFile(['comment_debug' => [
@@ -284,16 +364,16 @@ try {
                     ]]);
                 }
             } else {
-                //logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
+                logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
             }
             
-            //logToFile(['final_file_ids' => $fileIds]);
+            // Убрано лишнее логирование финальных ID файлов
         }
 
         // Получаем текстовый результат
         if (!empty($result['text'])) {
             $textResult = $result['text'];
-            //logToFile(['text_result' => $textResult]);
+            // Убрано лишнее логирование текстового результата
         }
     }
 
@@ -310,7 +390,7 @@ try {
             $domain
         );
     } else {
-        //logToFile('Нет файлов для записи в сущность');
+        logToFile('Нет файлов для записи в сущность');
         $entityUpdateSuccess = true; // Считаем успешным, если нет файлов
     }
 
@@ -338,7 +418,7 @@ try {
         'entity_updated' => $entityUpdateSuccess
     ];
 
-    //logToFile(['success' => $response]);
+    // Убрано лишнее логирование успеха
     echo json_encode($response);
 
 } catch (Exception $e) {
@@ -355,7 +435,7 @@ try {
 
     sendBizprocResult($eventToken, $returnValues, $access_token, $domain);
 
-    //logToFile(['exception' => $errorMessage, 'trace' => $e->getTraceAsString()]);
+    logToFile(['exception' => $errorMessage, 'trace' => $e->getTraceAsString()]);
     http_response_code(500);
     echo json_encode(['error' => $errorMessage]);
 }
