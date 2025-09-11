@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const robot = {
         code: 'robot_task_result_to_entity',
         name: 'Записать результат задачи в сущность (LeadSpace)',
-        handler: 'https://crm.verbconsult.ru/custom-robot/TaskResultToEntity.php'
+        handler: 'https://app.lead-space.ru/robot_find_file/TaskResultToEntity.php'
     };
 
     const statusEl = document.getElementById('status-task');
@@ -569,7 +569,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     entity_id: { Name: 'ID сущности', Type: 'int', Required: 'Y' },
                     field_code: { Name: 'Код поля для файлов', Type: 'string', Required: 'Y' },
-                    smart_process_id: { Name: 'ID смарт-процесса', Type: 'int', Required: 'N' }
+                    smart_process_id: { Name: 'ID типа смарт-процесса', Type: 'int', Required: 'N' }
                 },
                 RETURN_PROPERTIES: {
                     success: { Name: 'Успешно', Type: 'bool' },
@@ -586,8 +586,10 @@ document.addEventListener('DOMContentLoaded', function() {
             //debugLog('Результат установки:', result.data());
             
             showNotify('✅ Робот успешно установлен');
+            
             isInstalled = true;
             updateStatus('installed', 'Установлен');
+            window.location.reload();
             
         } catch (error) {
             console.error('Детали ошибки установки:', error);
@@ -626,6 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showNotify('✅ Робот успешно удалён');
             isInstalled = false;
             updateStatus('not-installed', 'Не установлен');
+            window.location.reload();
             
         } catch (error) {
             console.error('Ошибка удаления:', error);

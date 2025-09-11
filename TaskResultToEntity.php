@@ -69,6 +69,7 @@ function getFileContent($fileId, $access_token, $domain)
     
     if (!$fileInfo || !isset($fileInfo['result']['DOWNLOAD_URL'])) {
         logToFile(['file_info_error' => 'Не удалось получить информацию о файле', 'file_id' => $fileId]);
+        logToFile($fileInfo);
         return false;
     }
     
@@ -99,29 +100,29 @@ function getFileContent($fileId, $access_token, $domain)
 // Функция определения типа поля (множественное или нет)
 function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_token, $domain)
 {
-    $method = '';
+    $method = "crm.item.fields";
     $params = [];
     
     // Определяем метод получения полей в зависимости от типа сущности
     switch ($entity_type) {
         case 'lead':
-            $method = 'crm.lead.fields';
+            $params['entityTypeId'] = 1;
             break;
         case 'contact':
-            $method = 'crm.contact.fields';
+            $params['entityTypeId'] = 3;
             break;
         case 'company':
-            $method = 'crm.company.fields';
+            $params['entityTypeId'] = 4;
             break;
         case 'deal':
-            $method = 'crm.deal.fields';
+            $params['entityTypeId'] = 2;
             break;
         case 'smart_process':
             if (!$smart_process_id) {
                 logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
                 return false;
             }
-            $method = "crm.item.fields";
+            
             $params['entityTypeId'] = $smart_process_id;
             break;
         default:
@@ -147,7 +148,7 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
     
     if (!isset($fields[$field_code])) {
         logToFile(['field_not_found' => $field_code, 'available_fields' => array_keys($fields)]);
-        return false; // Поле не найдено
+        //return false; // Поле не найдено
     }
     
     $fieldInfo = $fields[$field_code];
@@ -227,27 +228,27 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
             $field_code => $fieldValue
         ]
     ];
-    
+    logToFile('ТИП СУЩНОСТИ ДЛЯ ОБНОВЛЕНИЯ: ' . $entity_type);
+    $method = 'crm.item.update';
     // Определяем метод API в зависимости от типа сущности
     switch ($entity_type) {
         case 'lead':
-            $method = 'crm.lead.update';
+            $params['entityTypeId']= 1;
             break;
         case 'contact':
-            $method = 'crm.contact.update';
+            $params['entityTypeId'] = 3;
             break;
         case 'company':
-            $method = 'crm.company.update';
+            $params['entityTypeId'] = 4;
             break;
         case 'deal':
-            $method = 'crm.deal.update';
+            $params['entityTypeId'] = 2;
             break;
         case 'smart_process':
             if (!$smart_process_id) {
                 logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
                 return false;
             }
-            $method = "crm.item.update";
             $params['entityTypeId'] = $smart_process_id;
             break;
         default:

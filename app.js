@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const robot = {
         code: 'robot_task_result_to_entity',
         name: 'Записать результат задачи в сущность (LeadSpace)',
-        handler: 'https://crm.verbconsult.ru/custom-robot/TaskResultToEntity.php',
+        handler: 'https://app.lead-space.ru/robot_find_file/TaskResultToEntity.php',
         statusElementId: 'status-task'
     };
 
