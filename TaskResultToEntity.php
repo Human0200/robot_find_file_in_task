@@ -39,7 +39,18 @@ $field_code = $data['properties']['field_code'];
 $smart_process_id = isset($data['properties']['smart_process_id']) ? intval($data['properties']['smart_process_id']) : null;
 $eventToken = isset($data['event_token']) ? $data['event_token'] : null;
 
-// Убрано лишнее логирование старта
+function convertFieldCode($fieldCode) {
+    if (preg_match('/^UF_CRM_(_?\d+)(?:_(\d+))?$/', $fieldCode, $matches)) {
+        $result = 'ufCrm_' . $matches[1]; // Всегда добавляем подчеркивание после ufCrm
+        if (!empty($matches[2])) {
+            $result .= '_' . $matches[2];
+        }
+        return $result;
+    }
+    return $fieldCode;
+}
+
+$field_code = convertFieldCode($field_code);
 
 // Функция вызова Bitrix24 API
 function callB24Api($method, $params, $access_token, $domain)
