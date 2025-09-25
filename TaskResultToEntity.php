@@ -114,10 +114,13 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
     $method = "crm.item.fields";
     $params = [];
     
-    // Определяем метод получения полей в зависимости от типа сущности
+    // Определяем entityTypeId в зависимости от типа сущности
     switch ($entity_type) {
         case 'lead':
             $params['entityTypeId'] = 1;
+            break;
+        case 'deal':
+            $params['entityTypeId'] = 2;
             break;
         case 'contact':
             $params['entityTypeId'] = 3;
@@ -125,15 +128,11 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
         case 'company':
             $params['entityTypeId'] = 4;
             break;
-        case 'deal':
-            $params['entityTypeId'] = 2;
-            break;
         case 'smart_process':
             if (!$smart_process_id) {
                 logToFile('Ошибка: Для смарт-процесса необходимо указать smart_process_id');
                 return false;
             }
-            
             $params['entityTypeId'] = $smart_process_id;
             break;
         default:
@@ -141,48 +140,68 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
             return false;
     }
     
-    // Убрано лишнее логирование запроса полей
-    
     $fieldsResult = callB24Api($method, $params, $access_token, $domain);
     
     if (!$fieldsResult || !isset($fieldsResult['result'])) {
         logToFile(['fields_request_error' => $fieldsResult]);
-        return false; // По умолчанию считаем не множественным
+        return false;
     }
     
-    // Для смарт-процессов поля находятся в result.fields, для остальных сущностей - в result
-    if ($entity_type === 'smart_process' && isset($fieldsResult['result']['fields'])) {
-        $fields = $fieldsResult['result']['fields'];
-    } else {
-        $fields = $fieldsResult['result'];
+    // ИСПРАВЛЕНИЕ: согласно документации, поля находятся в result.fields
+    if (!isset($fieldsResult['result']['fields'])) {
+        logToFile(['fields_structure_error' => 'Нет ключа fields в result', 'result_structure' => array_keys($fieldsResult['result'])]);
+        return false;
+    }
+    
+    $fields = $fieldsResult['result']['fields'];
+    
+    // Проверяем, что fields - массив
+    if (!is_array($fields)) {
+        logToFile(['fields_not_array' => 'Поля не являются массивом', 'fields_type' => gettype($fields)]);
+        return false;
     }
     
     if (!isset($fields[$field_code])) {
         logToFile(['field_not_found' => $field_code, 'available_fields' => array_keys($fields)]);
-        //return false; // Поле не найдено
+        return false;
     }
     
     $fieldInfo = $fields[$field_code];
     
-    // Проверяем признак множественности
-    // В Bitrix24 множественные поля имеют isMultiple = true или isRequired = Y и isMultiple = Y
+    // Детальная проверка признаков множественности
     $isMultiple = false;
     
-    if (isset($fieldInfo['isMultiple']) && $fieldInfo['isMultiple'] === true) {
-        $isMultiple = true;
-    } elseif (isset($fieldInfo['isMultiple']) && $fieldInfo['isMultiple'] === 'Y') {
-        $isMultiple = true;
-    } elseif (isset($fieldInfo['multiple']) && $fieldInfo['multiple'] === true) {
-        $isMultiple = true;
-    } elseif (isset($fieldInfo['multiple']) && $fieldInfo['multiple'] === 'Y') {
-        $isMultiple = true;
+    // Основные признаки множественного поля в Bitrix24
+    if (isset($fieldInfo['isMultiple'])) {
+        if ($fieldInfo['isMultiple'] === true || $fieldInfo['isMultiple'] === 'Y' || $fieldInfo['isMultiple'] == 1) {
+            $isMultiple = true;
+        }
     }
     
+    // Дополнительные проверки
+    if (isset($fieldInfo['multiple'])) {
+        if ($fieldInfo['multiple'] === true || $fieldInfo['multiple'] === 'Y' || $fieldInfo['multiple'] == 1) {
+            $isMultiple = true;
+        }
+    }
+    
+    // Для файловых полей проверяем тип
+    if (isset($fieldInfo['type']) && $fieldInfo['type'] === 'file') {
+        // Если это файловое поле и есть признаки множественности
+        if (isset($fieldInfo['isMultiple']) && $fieldInfo['isMultiple']) {
+            $isMultiple = true;
+        }
+    }
+    
+    // Логируем детальную информацию о поле
     logToFile([
-        'field_info_check' => [
+        'field_detailed_check' => [
             'field_code' => $field_code,
-            'field_info' => $fieldInfo,
-            'is_multiple_detected' => $isMultiple
+            'field_type' => isset($fieldInfo['type']) ? $fieldInfo['type'] : 'unknown',
+            'isMultiple_value' => isset($fieldInfo['isMultiple']) ? $fieldInfo['isMultiple'] : 'not_set',
+            'multiple_value' => isset($fieldInfo['multiple']) ? $fieldInfo['multiple'] : 'not_set',
+            'is_multiple_detected' => $isMultiple,
+            'field_info_keys' => array_keys($fieldInfo)
         ]
     ]);
     
@@ -232,7 +251,7 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
         }
         // Убрано лишнее логирование взятого файла
     }
-    
+    // $field_code = "ufCrm1758796871250";
     $params = [
         'id' => $entity_id,
         'fields' => [
@@ -272,7 +291,7 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
     $result = callB24Api($method, $params, $access_token, $domain);
     
     if ($result && isset($result['result'])) {
-        // Убрано лишнее логирование успешного обновления
+         file_put_contents(__DIR__ . '/last_entity_update_response.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         return true;
     } else {
         logToFile(['entity_update_error' => $result]);
