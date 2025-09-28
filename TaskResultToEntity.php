@@ -1,4 +1,5 @@
 <?php
+require_once 'crest.php';
 // Настройка логирования
 function logToFile($data)
 {
@@ -288,10 +289,33 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
     
     // Убрано лишнее логирование запроса обновления
     
+   // $result = callB24Api($method, $params, $access_token, $domain);
     $result = callB24Api($method, $params, $access_token, $domain);
-    
+// $test = CRest::call('crm.item.update', [
+//     'entityTypeId' => 2,
+//     'id' => 2,
+//     'fields' => [
+//         'title' => "REST Сделка #1",
+//         'UF_CRM_1758796871250' => [
+//             [
+//                 'fileData' => [
+//                     'test.txt',
+//                     base64_encode('Hello, World!')
+//                 ]
+//             ],
+//             [
+//                 'fileData' => [
+//                     'test2.txt',
+//                     base64_encode('Hello, World 2!')
+//                 ]
+//             ]
+//         ],
+//     ]
+// ]);
+//file_put_contents(__DIR__ . '/last_entity_update_request.json', json_encode($test, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+   // file_put_contents(__DIR__ . '/last_entity_update_response.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     if ($result && isset($result['result'])) {
-         file_put_contents(__DIR__ . '/last_entity_update_response.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+         
         return true;
     } else {
         logToFile(['entity_update_error' => $result]);
