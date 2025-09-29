@@ -40,7 +40,8 @@ $field_code = $data['properties']['field_code'];
 $smart_process_id = isset($data['properties']['smart_process_id']) ? intval($data['properties']['smart_process_id']) : null;
 $eventToken = isset($data['event_token']) ? $data['event_token'] : null;
 
-function convertFieldCode($fieldCode) {
+function convertFieldCode($fieldCode)
+{
     if (preg_match('/^UF_CRM_(_?\d+)(?:_(\d+))?$/', $fieldCode, $matches)) {
         $result = 'ufCrm_' . $matches[1]; // Всегда добавляем подчеркивание после ufCrm
         if (!empty($matches[2])) {
@@ -50,8 +51,9 @@ function convertFieldCode($fieldCode) {
     }
     return $fieldCode;
 }
+if($entity_type == 'smart_process')
+  $field_code = convertFieldCode($field_code);
 
-$field_code = convertFieldCode($field_code);
 
 // Функция вызова Bitrix24 API
 function callB24Api($method, $params, $access_token, $domain)
@@ -78,16 +80,16 @@ function getFileContent($fileId, $access_token, $domain)
 {
     // Получаем информацию о файле включая download URL
     $fileInfo = callB24Api('disk.file.get', ['id' => $fileId], $access_token, $domain);
-    
+
     if (!$fileInfo || !isset($fileInfo['result']['DOWNLOAD_URL'])) {
         logToFile(['file_info_error' => 'Не удалось получить информацию о файле', 'file_id' => $fileId]);
         logToFile($fileInfo);
         return false;
     }
-    
+
     $downloadUrl = $fileInfo['result']['DOWNLOAD_URL'];
     $fileName = $fileInfo['result']['NAME'];
-    
+
     // Скачиваем содержимое файла
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $downloadUrl);
@@ -95,17 +97,17 @@ function getFileContent($fileId, $access_token, $domain)
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    
+
     $content = curl_exec($ch);
-    
+
     if (curl_errno($ch)) {
         logToFile('CURL Download Error: ' . curl_error($ch));
         curl_close($ch);
         return false;
     }
-    
+
     curl_close($ch);
-    
+
     return ['content' => $content, 'name' => $fileName];
 }
 
@@ -114,7 +116,7 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
 {
     $method = "crm.item.fields";
     $params = [];
-    
+
     // Определяем entityTypeId в зависимости от типа сущности
     switch ($entity_type) {
         case 'lead':
@@ -140,52 +142,52 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
             logToFile(['unsupported_entity_type_for_fields' => $entity_type]);
             return false;
     }
-    
+
     $fieldsResult = callB24Api($method, $params, $access_token, $domain);
-    
+
     if (!$fieldsResult || !isset($fieldsResult['result'])) {
         logToFile(['fields_request_error' => $fieldsResult]);
         return false;
     }
-    
+
     // ИСПРАВЛЕНИЕ: согласно документации, поля находятся в result.fields
     if (!isset($fieldsResult['result']['fields'])) {
         logToFile(['fields_structure_error' => 'Нет ключа fields в result', 'result_structure' => array_keys($fieldsResult['result'])]);
         return false;
     }
-    
+
     $fields = $fieldsResult['result']['fields'];
-    
+
     // Проверяем, что fields - массив
     if (!is_array($fields)) {
         logToFile(['fields_not_array' => 'Поля не являются массивом', 'fields_type' => gettype($fields)]);
         return false;
     }
-    
+
     if (!isset($fields[$field_code])) {
         logToFile(['field_not_found' => $field_code, 'available_fields' => array_keys($fields)]);
         return false;
     }
-    
+
     $fieldInfo = $fields[$field_code];
-    
+
     // Детальная проверка признаков множественности
     $isMultiple = false;
-    
+
     // Основные признаки множественного поля в Bitrix24
     if (isset($fieldInfo['isMultiple'])) {
         if ($fieldInfo['isMultiple'] === true || $fieldInfo['isMultiple'] === 'Y' || $fieldInfo['isMultiple'] == 1) {
             $isMultiple = true;
         }
     }
-    
+
     // Дополнительные проверки
     if (isset($fieldInfo['multiple'])) {
         if ($fieldInfo['multiple'] === true || $fieldInfo['multiple'] === 'Y' || $fieldInfo['multiple'] == 1) {
             $isMultiple = true;
         }
     }
-    
+
     // Для файловых полей проверяем тип
     if (isset($fieldInfo['type']) && $fieldInfo['type'] === 'file') {
         // Если это файловое поле и есть признаки множественности
@@ -193,7 +195,7 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
             $isMultiple = true;
         }
     }
-    
+
     // Логируем детальную информацию о поле
     logToFile([
         'field_detailed_check' => [
@@ -205,7 +207,7 @@ function isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_t
             'field_info_keys' => array_keys($fieldInfo)
         ]
     ]);
-    
+
     return $isMultiple;
 }
 
@@ -214,31 +216,47 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
 {
     // Определяем, является ли поле множественным
     $isMultiple = isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_token, $domain);
-    
+
     // Убрано лишнее логирование проверки множественности
-    
+
     $method = '';
-    
+
     // Преобразуем массив ID файлов в правильный формат для Bitrix24
     $fileValues = [];
-    foreach ($fileIds as $fileId) {
-        $fileData = getFileContent($fileId, $access_token, $domain);
-        if ($fileData) {
-            $fileValues[] = [
-                $fileData['name'],
-                base64_encode($fileData['content'])
-            ];
-            // Убрано лишнее логирование подготовки файла
-        } else {
-            logToFile(['file_preparation_failed' => $fileId]);
+    if ($entity_type != 'smart_process') {
+        foreach ($fileIds as $fileId) {
+            $fileData = getFileContent($fileId, $access_token, $domain);
+            if ($fileData) {
+                $fileValues[] = [
+                    'fileData' => [
+                        $fileData['name'],
+                        base64_encode($fileData['content'])
+                    ]
+                ];
+            } else {
+                logToFile(['file_preparation_failed' => $fileId]);
+            }
+        }
+    } else {
+        foreach ($fileIds as $fileId) {
+            $fileData = getFileContent($fileId, $access_token, $domain);
+            if ($fileData) {
+                $fileValues[] = [
+                    $fileData['name'],
+                    base64_encode($fileData['content'])
+                ];
+                // Убрано лишнее логирование подготовки файла
+            } else {
+                logToFile(['file_preparation_failed' => $fileId]);
+            }
         }
     }
-    
+
     if (empty($fileValues)) {
         logToFile('Нет файлов для записи после обработки');
         return false;
     }
-    
+
     // Определяем формат передачи файлов на основе типа поля
     if ($isMultiple) {
         // Для множественных полей всегда передаем массив (даже если файл один)
@@ -264,16 +282,16 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
     // Определяем метод API в зависимости от типа сущности
     switch ($entity_type) {
         case 'lead':
-            $params['entityTypeId']= 1;
+            $method = 'crm.lead.update';
             break;
         case 'contact':
-            $params['entityTypeId'] = 3;
+            $method = 'crm.contact.update';
             break;
         case 'company':
-            $params['entityTypeId'] = 4;
+            $method = 'crm.company.update';
             break;
         case 'deal':
-            $params['entityTypeId'] = 2;
+            $method = 'crm.deal.update';
             break;
         case 'smart_process':
             if (!$smart_process_id) {
@@ -286,36 +304,36 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
             logToFile(['unsupported_entity_type' => $entity_type]);
             return false;
     }
-    
+
     // Убрано лишнее логирование запроса обновления
-    
-   // $result = callB24Api($method, $params, $access_token, $domain);
+
+    // $result = callB24Api($method, $params, $access_token, $domain);
     $result = callB24Api($method, $params, $access_token, $domain);
-// $test = CRest::call('crm.item.update', [
-//     'entityTypeId' => 2,
-//     'id' => 2,
-//     'fields' => [
-//         'title' => "REST Сделка #1",
-//         'UF_CRM_1758796871250' => [
-//             [
-//                 'fileData' => [
-//                     'test.txt',
-//                     base64_encode('Hello, World!')
-//                 ]
-//             ],
-//             [
-//                 'fileData' => [
-//                     'test2.txt',
-//                     base64_encode('Hello, World 2!')
-//                 ]
-//             ]
-//         ],
-//     ]
-// ]);
-//file_put_contents(__DIR__ . '/last_entity_update_request.json', json_encode($test, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-   // file_put_contents(__DIR__ . '/last_entity_update_response.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    // $test = CRest::call('crm.item.update', [
+    //     'entityTypeId' => 2,
+    //     'id' => 2,
+    //     'fields' => [
+    //         'title' => "REST Сделка #1",
+    //         'UF_CRM_1758796871250' => [
+    //             [
+    //                 'fileData' => [
+    //                     'test.txt',
+    //                     base64_encode('Hello, World!')
+    //                 ]
+    //             ],
+    //             [
+    //                 'fileData' => [
+    //                     'test2.txt',
+    //                     base64_encode('Hello, World 2!')
+    //                 ]
+    //             ]
+    //         ],
+    //     ]
+    // ]);
+    //file_put_contents(__DIR__ . '/last_entity_update_request.json', json_encode($test, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    // file_put_contents(__DIR__ . '/last_entity_update_response.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     if ($result && isset($result['result'])) {
-         
+
         return true;
     } else {
         logToFile(['entity_update_error' => $result]);
@@ -330,7 +348,7 @@ function sendBizprocResult($eventToken, $returnValues, $access_token, $domain)
         logToFile('Предупреждение: event_token не найден, результат не отправлен в БП');
         return true;
     }
-    
+
     return callB24Api(
         'bizproc.event.send',
         [
@@ -347,14 +365,14 @@ try {
     $task = callB24Api("tasks.task.get", ['taskId' => $task_id], $access_token, $domain);
     if (!$task || !isset($task['result']['task'])) {
         logToFile("Ошибка: Задача #{$task_id} не найдена");
-        
+
         $returnValues = [
             'success' => false,
             'message' => "Задача #{$task_id} не найдена"
         ];
-        
+
         sendBizprocResult($eventToken, $returnValues, $access_token, $domain);
-        
+
         http_response_code(404);
         echo json_encode(['error' => "Задача #{$task_id} не найдена"]);
         exit;
@@ -384,26 +402,26 @@ try {
         if (!empty($result['files']) && is_array($result['files'])) {
             $fileIds = $result['files'];
             // Убрано лишнее логирование оригинальных ID
-            
+
             // Попробуем получить реальные FILE_ID через комментарий
             if (!empty($result['commentId'])) {
                 $commentInfo = callB24Api("task.commentitem.get", [
                     'TASKID' => $task_id,
                     'ITEMID' => $result['commentId']
                 ], $access_token, $domain);
-                
+
                 // Убрано лишнее логирование запроса комментария
-                
+
                 if ($commentInfo && isset($commentInfo['result']['ATTACHED_OBJECTS'])) {
                     // Убрано лишнее логирование найденных объектов
-                    
+
                     $realFileIds = [];
                     foreach ($commentInfo['result']['ATTACHED_OBJECTS'] as $attachedFile) {
                         if (isset($attachedFile['FILE_ID'])) {
                             $realFileIds[] = $attachedFile['FILE_ID']; // Добавляем реальный FILE_ID
                         }
                     }
-                    
+
                     if (!empty($realFileIds)) {
                         $fileIds = $realFileIds;
                         // Убрано лишнее логирование замены ID
@@ -421,7 +439,7 @@ try {
             } else {
                 logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
             }
-            
+
             // Убрано лишнее логирование финальных ID файлов
         }
 
@@ -455,8 +473,8 @@ try {
         'files_count' => count($fileIds),
         'files_ids' => implode(',', $fileIds),
         'text_result' => $textResult,
-        'message' => $entityUpdateSuccess ? 
-            'Файлы успешно записаны в сущность' : 
+        'message' => $entityUpdateSuccess ?
+            'Файлы успешно записаны в сущность' :
             'Ошибка при записи файлов в сущность'
     ];
 
@@ -475,11 +493,10 @@ try {
 
     // Убрано лишнее логирование успеха
     echo json_encode($response);
-
 } catch (Exception $e) {
     // Обработка исключений
     $errorMessage = 'Внутренняя ошибка сервера: ' . $e->getMessage();
-    
+
     $returnValues = [
         'success' => false,
         'message' => $errorMessage,
@@ -494,4 +511,3 @@ try {
     http_response_code(500);
     echo json_encode(['error' => $errorMessage]);
 }
-?>
