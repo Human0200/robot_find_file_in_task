@@ -1,358 +1,369 @@
-/* Общие стили */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+.lsyr_app-body {
+	color: black;
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	gap: 10px;
+	font-family: Arial, Helvetica, sans-serif;
+
+	background-color: var(--bg, white);
 }
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    color: #333;
+.lsyr_app-body a {
+	font-size: 12px;
+	color: #757575 !important;
+	text-decoration: none;
 }
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+.lsyr_review-box {
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	align-items: center;
+	flex-direction: column;
+	justify-content: space-between;
+	flex-grow: 0;
+	flex-shrink: 0;
+	min-width: 200px;
+	padding: 15px;
+	background-color: var(--bg, #f5f5f5);
+	border-radius: 4px;
+	position: relative;
+	width: 240px;
+	max-height: 290px;
 }
 
-/* Заголовок */
-header {
-    text-align: center;
-    margin-bottom: 30px;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
+.lsyr_review-list {
+	--bg: white;
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	flex-grow: 1;
+	flex-shrink: 1;
+	flex-direction: column;
+	padding: 2px !important;
+	background-color: var(--bg, white);
+	/* margin-bottom: 15px; */
 }
 
-header h1 {
-    font-size: 2.5em;
-    color: #2c3e50;
-    margin-bottom: 10px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+.lsyr_review-item {
+	background-color: #ffffff;
+	padding: 15px;
+	border-width: 0px;
+	border-color: transparent;
+	border-radius: 10px;
+	border-style: solid;
+	-webkit-box-shadow:
+		0 2px 2px 0 rgb(0 0 0 / 14%),
+		0 3px 1px -2px rgb(0 0 0 / 12%),
+		0 1px 5px 0 rgb(0 0 0 / 20%);
+	box-shadow:
+		0 2px 2px 0 rgb(0 0 0 / 14%),
+		0 3px 1px -2px rgb(0 0 0 / 12%),
+		0 1px 5px 0 rgb(0 0 0 / 20%);
 }
 
-.subtitle {
-    font-size: 1.2em;
-    color: #7f8c8d;
-    font-weight: 300;
+.lsyr_business-review-view__info {
+	display: flex;
+	flex-direction: column;
+	min-height: 180px;
+	position: relative;
 }
 
-/* Панель управления */
-.controls {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-bottom: 30px;
-    flex-wrap: wrap;
+.lsyr_review-bottom {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	box-sizing: border-box;
+	padding-left: 12px;
+	padding-right: 12px;
 }
 
-/* Базовые стили кнопок */
-.button-link {
-    background: linear-gradient(145deg, #72caf3, #5fb3d4);
-    border: none;
-    color: #fff;
-    padding: 12px 24px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 14px;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 25px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    min-height: 45px;
+.lsyr_review-bottom .lsyr_button-next,
+.lsyr_review-bottom .lsyr_button-prev {
+	width: 32px;
+	height: 32px;
+	flex-basis: 32px;
+	border-radius: 50%;
+	background-color: #f5f5f5;
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	align-content: center;
+	align-items: center;
+	flex-wrap: wrap;
+	justify-content: center;
+	cursor: pointer;
 }
 
-.button-link:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+.lsyr_button-prev svg {
+	transform: rotate(0deg);
 }
 
-.button-link img {
-    margin-right: 8px;
-    width: 20px;
-    height: 20px;
+.lsyr_button-next svg {
+	transform: rotate(180deg);
 }
 
-/* Стили для эмоджи в кнопках */
-.button-link > span {
-    font-size: 18px;
-    line-height: 1;
+.lsyr_business-rating-badge-view__stars {
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	margin-right: 4px;
 }
 
-/* Специальные кнопки */
-.install-button {
-    background: linear-gradient(145deg, #6ceca1, #4caf50);
+.lsyr_business-review-view__author-image {
+	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	text-decoration: none;
 }
 
-.install-button:hover {
-    background: linear-gradient(145deg, #5dd18e, #45a049);
+.lsyr_user-icon-view__icon {
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #fff;
+	background: 50% / cover no-repeat;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
 }
 
-.delete-button {
-    background: linear-gradient(145deg, #ff6b6b, #e74c3c);
+.lsyr_business-review-view__author-container {
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	justify-content: flex-start;
+	align-items: center;
 }
 
-.delete-button:hover {
-    background: linear-gradient(145deg, #ff5252, #c0392b);
+.lsyr_business-review-view__author-image {
+	display: flex;
+	margin-right: 12px;
 }
 
-.support-button {
-    background: linear-gradient(145deg, #ffd93d, #f39c12);
+.lsyr_business-review-view__author-info {
+	font-size: 16px;
+	line-height: 20px;
+	overflow: hidden;
+	margin-right: 10px;
+	font-weight: 500;
+	text-align: left;
 }
 
-.support-button:hover {
-    background: linear-gradient(145deg, #ffcd02, #e67e22);
+.lsyr_business-review-view__header {
+	display: flex;
+	margin-top: 16px;
 }
 
-.support-button img {
-    width: 18px;
-    height: auto;
+.lsyr_business-review-view__date {
+	color: var(--color-text-secondary);
+	font-size: 14px;
+	line-height: 16px;
 }
 
-/* Обновленные стили для футера */
-#image-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1000;
-    font-size: 48px;
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
+.lsyr_business-review-view__body {
+	margin-top: 8px;
+	font-size: 16px;
+	line-height: 20px;
+	word-break: break-word;
+	overflow-wrap: break-word;
+	word-wrap: break-word;
 }
 
-#image-container:hover {
-    opacity: 1;
+.lsyr_business-rating-badge-view__star._full {
+	color: #fc0;
 }
 
-/* Контейнер роботов */
-.robots-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 25px;
-    margin-bottom: 40px;
+.lsyr_business-rating-badge-view__star._empty {
+	color: #ccc;
 }
 
-/* Карточки роботов */
-.robot-group {
-    background: rgba(255, 255, 255, 0.95);
-    padding: 25px;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease;
+.lsyr_business-summary-rating-badge-view__rating {
+	padding-left: 4px;
+	font-size: 22px;
+	line-height: 24px;
+	font-weight: 700;
+	text-align: center;
 }
 
-.robot-group:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+.lsyr_business-summary-rating-badge-view__rating-text {
+	font-size: 56px;
+	line-height: 66px;
+	color: var(--color-text-primary-variant);
 }
 
-.robot-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
+.lsyr_reviews-btn {
+	-webkit-box-shadow:
+		0 2px 2px 0 rgb(0 0 0 / 14%),
+		0 3px 1px -2px rgb(0 0 0 / 12%),
+		0 1px 5px 0 rgb(0 0 0 / 20%);
+	box-shadow:
+		0 2px 2px 0 rgb(0 0 0 / 14%),
+		0 3px 1px -2px rgb(0 0 0 / 12%),
+		0 1px 5px 0 rgb(0 0 0 / 20%);
+	padding: 5px 20px !important;
+	border-radius: 4px;
+	line-height: 1.5;
+	font-size: 15px;
+	cursor: pointer;
+	position: relative;
+	text-decoration: none;
 }
 
-.robot-header h3 {
-    color: #2c3e50;
-    font-size: 1.4em;
-    margin: 0;
+.lsyr_reviews-btn:hover {
+	-webkit-box-shadow:
+		0 3px 3px 0 rgb(0 0 0 / 14%),
+		0 1px 7px 0 rgb(0 0 0 / 12%),
+		0 3px 1px -1px rgb(0 0 0 / 20%);
+	box-shadow:
+		0 3px 3px 0 rgb(0 0 0 / 14%),
+		0 1px 7px 0 rgb(0 0 0 / 12%),
+		0 3px 1px -1px rgb(0 0 0 / 20%);
 }
 
-.robot-status {
-    padding: 5px 12px;
-    border-radius: 15px;
-    font-size: 0.8em;
-    font-weight: bold;
-    min-width: 80px;
-    text-align: center;
+.lsyr_button-next:hover path,
+.lsyr_button-prev:hover path {
+	fill: #ffffff;
 }
 
-.robot-status.installed {
-    background: #d4edda;
-    color: #155724;
+.lsyr_items-text {
+	overflow: hidden;
 }
 
-.robot-status.not-installed {
-    background: #f8d7da;
-    color: #721c24;
+.lsyr_business-review-view__body a {
+	text-decoration: 1px #000 dashed;
+	font-size: 14px;
+	color: #000;
 }
 
-.robot-description {
-    color: #555;
-    line-height: 1.6;
-    margin-bottom: 15px;
+a.lsyr_review-source-link {
+	font-size: 12px;
+	color: #757575 !important;
+	margin-top: 5px;
+	display: block;
+	bottom: -10px;
 }
 
-.robot-params {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    border-left: 4px solid #72caf3;
+.lsyr_review-bottom .lsyr_pagination > span {
+	flex-grow: 1;
+	border-radius: 0;
+	margin: 0 !important;
+	height: 2px;
+	opacity: 0.05;
 }
 
-.robot-params strong {
-    color: #2c3e50;
-    display: block;
-    margin-bottom: 8px;
+.lsyr_button-next:after,
+.lsyr_button-prev:after {
+	text-transform: none !important;
+	font-variant: initial;
+	line-height: 1;
 }
 
-.robot-params ul {
-    margin-left: 20px;
-    color: #666;
+.lsyr_pagination {
+	flex: 1 1 auto;
+	display: flex;
+	justify-content: center;
 }
 
-.robot-params li {
-    margin-bottom: 5px;
-    line-height: 1.4;
+.lsyr_pagination ul > li::before {
+	display: none;
 }
 
-.robot-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+.lsyr_review-bottom {
+	display: flex;
+	-webkit-display: flex;
+	-moz-display: flex;
+	-ms--display: flex;
+	flex-direction: row;
+	align-items: center;
+	position: relative;
+	gap: 15px;
 }
 
-.robot-actions .button-link {
-    flex: 1;
-    min-width: 140px;
-    justify-content: center;
+.lsyr_review-bottom .lsyr_pagination > .lsyr_pagination-bullet-active {
+	opacity: 1;
 }
 
-/* Футер */
-footer {
-    position: relative;
-    margin-top: 40px;
+.lsyr_slide {
+	padding: 2px 12px;
+	min-height: 210px;
 }
 
-#image-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1000;
+.lsyr_buttons {
+	display: flex;
+	gap: 10px;
 }
 
-#image-container img {
-    width: 120px;
-    height: auto;
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
+.lsyr_business-review-view_copy {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	font-size: 14px;
+	color: #757575;
+	margin-left: 10px;
 }
 
-#image-container:hover img {
-    opacity: 1;
+.lsyr_reviews-count a {
+	font-size: 12px;
+	color: #757575;
+	text-decoration: none;
 }
 
-/* Адаптивность */
-@media (max-width: 768px) {
-    .container {
-        padding: 15px;
-    }
-    
-    header h1 {
-        font-size: 2em;
-    }
-    
-    .robots-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .controls {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .robot-actions {
-        flex-direction: column;
-    }
-    
-    .robot-actions .button-link {
-        min-width: auto;
-    }
-    
-    #image-container {
-        position: static;
-        text-align: center;
-        margin-top: 20px;
-    }
+.lsyr-readmore,
+.lsyr-readless {
+	margin-bottom: 40px;
 }
 
-@media (max-width: 480px) {
-    .robot-group {
-        padding: 20px 15px;
-    }
-    
-    .robot-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .button-link {
-        padding: 10px 16px;
-        font-size: 13px;
-    }
-}
+@media (max-width: 800px) {
+	.lsyr_app-body {
+		padding: 0 30px;
+		flex-direction: column;
+		align-items: center;
+		gap: 20px;
+	}
 
-/* Анимации */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
+	.lsyr_review-box {
+		gap: 15px;
+		width: 100%;
+		padding-left: 0px;
+		padding-right: 0px;
+	}
 
-.robot-group {
-    animation: fadeInUp 0.6s ease forwards;
-}
+	.lsyr_slide {
+		padding-left: 0px;
+		padding-right: 0px;
+		min-height: unset;
+	}
 
-.robot-group:nth-child(2) {
-    animation-delay: 0.1s;
-}
+	.lsyr_button-prev svg {
+		transform: rotate(90deg);
+	}
 
-.robot-group:nth-child(3) {
-    animation-delay: 0.2s;
-}
+	.lsyr_button-next svg {
+		transform: rotate(-90deg);
+	}
 
-/* Состояния загрузки */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.loading::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 20px;
-    height: 20px;
-    margin: -10px 0 0 -10px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+	.lsyr_review-bottom {
+		display: flex;
+		-webkit-display: flex;
+		-moz-display: flex;
+		-ms--display: flex;
+		flex-direction: row;
+		align-items: center;
+		position: relative;
+		gap: 10px;
+		margin-top: 20px;
+		padding-left: 0px;
+	}
 }

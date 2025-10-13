@@ -395,60 +395,64 @@ try {
     $fileIds = [];
     $textResult = '';
 
-    if (!empty($results)) {
-        $result = $results[0]; // Берем первый результат
+if (!empty($results)) {
+    // Берем последний результат вместо первого
+    $result = end($results);
+    
+    // Если нужно сбросить внутренний указатель массива, можно использовать:
+    // $result = $results[count($results) - 1];
 
-        // Получаем файлы
-        if (!empty($result['files']) && is_array($result['files'])) {
-            $fileIds = $result['files'];
-            // Убрано лишнее логирование оригинальных ID
+    // Получаем файлы
+    if (!empty($result['files']) && is_array($result['files'])) {
+        $fileIds = $result['files'];
+        // Убрано лишнее логирование оригинальных ID
 
-            // Попробуем получить реальные FILE_ID через комментарий
-            if (!empty($result['commentId'])) {
-                $commentInfo = callB24Api("task.commentitem.get", [
-                    'TASKID' => $task_id,
-                    'ITEMID' => $result['commentId']
-                ], $access_token, $domain);
+        
+        if (!empty($result['commentId'])) {
+            $commentInfo = callB24Api("task.commentitem.get", [
+                'TASKID' => $task_id,
+                'ITEMID' => $result['commentId']
+            ], $access_token, $domain);
 
-                // Убрано лишнее логирование запроса комментария
+            // Убрано лишнее логирование запроса комментария
 
-                if ($commentInfo && isset($commentInfo['result']['ATTACHED_OBJECTS'])) {
-                    // Убрано лишнее логирование найденных объектов
+            if ($commentInfo && isset($commentInfo['result']['ATTACHED_OBJECTS'])) {
+                // Убрано лишнее логирование найденных объектов
 
-                    $realFileIds = [];
-                    foreach ($commentInfo['result']['ATTACHED_OBJECTS'] as $attachedFile) {
-                        if (isset($attachedFile['FILE_ID'])) {
-                            $realFileIds[] = $attachedFile['FILE_ID']; // Добавляем реальный FILE_ID
-                        }
+                $realFileIds = [];
+                foreach ($commentInfo['result']['ATTACHED_OBJECTS'] as $attachedFile) {
+                    if (isset($attachedFile['FILE_ID'])) {
+                        $realFileIds[] = $attachedFile['FILE_ID']; // Добавляем реальный FILE_ID
                     }
+                }
 
-                    if (!empty($realFileIds)) {
-                        $fileIds = $realFileIds;
-                        // Убрано лишнее логирование замены ID
-                    } else {
-                        logToFile(['no_file_ids_in_attached_objects' => 'FILE_ID не найден в ATTACHED_OBJECTS']);
-                    }
+                if (!empty($realFileIds)) {
+                    $fileIds = $realFileIds;
+                    // Убрано лишнее логирование замены ID
                 } else {
-                    logToFile(['comment_debug' => [
-                        'comment_info_exists' => isset($commentInfo),
-                        'has_result' => isset($commentInfo['result']),
-                        'has_attached_objects' => isset($commentInfo['result']['ATTACHED_OBJECTS']),
-                        'comment_response' => $commentInfo
-                    ]]);
+                    logToFile(['no_file_ids_in_attached_objects' => 'FILE_ID не найден в ATTACHED_OBJECTS']);
                 }
             } else {
-                logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
+                logToFile(['comment_debug' => [
+                    'comment_info_exists' => isset($commentInfo),
+                    'has_result' => isset($commentInfo['result']),
+                    'has_attached_objects' => isset($commentInfo['result']['ATTACHED_OBJECTS']),
+                    'comment_response' => $commentInfo
+                ]]);
             }
-
-            // Убрано лишнее логирование финальных ID файлов
+        } else {
+            logToFile(['no_comment_id' => 'commentId отсутствует в результате задачи']);
         }
 
-        // Получаем текстовый результат
-        if (!empty($result['text'])) {
-            $textResult = $result['text'];
-            // Убрано лишнее логирование текстового результата
-        }
+        // Убрано лишнее логирование финальных ID файлов
     }
+
+    // Получаем текстовый результат
+    if (!empty($result['text'])) {
+        $textResult = $result['text'];
+        // Убрано лишнее логирование текстового результата
+    }
+}
 
     // 4. Записываем файлы в сущность, если есть файлы
     $entityUpdateSuccess = false;
