@@ -217,10 +217,6 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
     // Определяем, является ли поле множественным
     $isMultiple = isFieldMultiple($entity_type, $field_code, $smart_process_id, $access_token, $domain);
 
-    // Убрано лишнее логирование проверки множественности
-
-    $method = '';
-
     // Преобразуем массив ID файлов в правильный формат для Bitrix24
     $fileValues = [];
     if ($entity_type != 'smart_process') {
@@ -245,7 +241,6 @@ function updateEntity($entity_type, $entity_id, $field_code, $fileIds, $smart_pr
                     $fileData['name'],
                     base64_encode($fileData['content'])
                 ];
-                // Убрано лишнее логирование подготовки файла
             } else {
                 logToFile(['file_preparation_failed' => $fileId]);
             }
